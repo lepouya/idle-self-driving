@@ -1,0 +1,7 @@
+/* Ionic Variables and Theming. For more info, please see:
+http://ionicframework.com/docs/theming/ */
+
+.ion-page {
+  max-width: min(80rem, 100%);
+  margin: auto;
+}

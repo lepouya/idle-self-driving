@@ -1,0 +1,7 @@
+{
+  "name": "idle-self-driving",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
