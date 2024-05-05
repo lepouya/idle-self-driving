@@ -9,7 +9,7 @@ import {
 } from "@ionic/react";
 
 import App from "../model/App";
-import Track, { useTracks } from "../model/Tracks";
+import Track, { useTracks } from "../model/Track";
 
 export default function DrivingTab() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

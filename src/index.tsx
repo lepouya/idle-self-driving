@@ -21,7 +21,7 @@ import { createRoot } from "react-dom/client";
 import { IonApp, setupIonicReact } from "@ionic/react";
 
 import App from "./model/App";
-import Track from "./model/Tracks";
+import Track from "./model/Track";
 import DrivingTab from "./pages/DrivingTab";
 import SettingsTab from "./pages/SettingsTab";
 import TabApp from "./pages/TabApp";
