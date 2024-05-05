@@ -249,9 +249,11 @@ export function loadImage(
       }
       props.src =
         "data:image/svg+xml;utf8," +
-        props.src
-          .replace("{width}", opts?.width?.toString() || "100%")
-          .replace("{height}", opts?.height?.toString() || "100%");
+        encodeURIComponent(
+          props.src
+            .replace("{width}", opts?.width?.toString() || "100%")
+            .replace("{height}", opts?.height?.toString() || "100%"),
+        );
     }
 
     const img = new Image();

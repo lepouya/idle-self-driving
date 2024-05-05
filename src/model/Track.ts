@@ -13,13 +13,34 @@ abstract class Track {
   abstract get startingDirection(): [number, number];
 
   get mask(): string {
-    const svg = `<svg width="${Track.width}px" height="${Track.height}px" viewBox="0 0 ${Track.width} ${Track.height}">`;
-    const bg = `<rect width="${Track.width}" height="${Track.height}" fill="#222222" />`;
-    const paths = this.path.map(
-      (path) =>
-        `<path d="${path}" stroke="#000000" strokeWidth="${this.roadThickness}px" strokeLinecap="round" strokeLinejoin="round" />`,
-    );
-    return `${svg}${bg}${paths.join("")}</svg>`;
+    return [
+      // Viewbox
+      `<svg
+        width="${Track.width}px"
+        height="${Track.height}px"
+        viewBox="0 0 ${Track.width} ${Track.height}"
+      >`,
+      // Background
+      `<rect
+        width="${Track.width}"
+        height="${Track.height}"
+        fill="#222222"
+      />`,
+      // Road mast
+      this.path.map(
+        (path) =>
+          `<path
+            d="${path}"
+            stroke="#000000"
+            stroke-width="${this.roadThickness}px"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            fill="none"
+          />`,
+      ),
+      // Closing
+      `</svg>`,
+    ].join("");
   }
 
   get image(): string {
