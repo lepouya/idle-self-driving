@@ -17,7 +17,7 @@ Playing with this idea I have for a self-training driving system.
 ## TODO
 
 - ~~Set up project skeleton~~
-- Road object and rendering
+- ~~Road object and rendering~~
 - Car object and rendering
 - Sensor objects and rendering
 - Network objects and rendering

@@ -18,9 +18,10 @@ import "./theme.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { IonApp, IonLoading, setupIonicReact } from "@ionic/react";
+import { IonApp, setupIonicReact } from "@ionic/react";
 
 import App from "./model/App";
+import Track from "./model/Tracks";
 import DrivingTab from "./pages/DrivingTab";
 import SettingsTab from "./pages/SettingsTab";
 import TabApp from "./pages/TabApp";
@@ -32,13 +33,14 @@ div.id = "root";
 document.body.appendChild(div);
 const root = createRoot(div);
 
-root.render(
-  <IonLoading
-    isOpen={true}
-    message="Loading assets..."
-    spinner="lines-sharp"
-  />,
-);
+// import { IonLoading } from "@ionic/react";
+// root.render(
+//   <IonLoading
+//     isOpen={true}
+//     message="Loading assets..."
+//     spinner="lines-sharp"
+//   />,
+// );
 
 window.addEventListener(
   "load",
@@ -47,6 +49,7 @@ window.addEventListener(
     DrivingTab.init();
     SettingsTab.init();
     await App.Settings.load();
+    await Track.loadAll();
 
     root.render(
       <StrictMode>
