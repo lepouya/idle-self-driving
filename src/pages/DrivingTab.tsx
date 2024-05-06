@@ -9,19 +9,27 @@ import {
 } from "@ionic/react";
 
 import App from "../model/App";
+import { useCars } from "../model/Car";
 import Track, { useTracks } from "../model/Track";
 
 export default function DrivingTab() {
+  const settings = App.useSettings();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [track, _setTrack] = useState("Basic");
   const tracks = useTracks();
+  const cars = useCars();
 
   useEffect(() => {
-    if (tracks[track || ""]?.canvas && canvasRef.current) {
+    cars.forEach((car) => car.placeAtStart(tracks[track]));
+  }, [track]);
+
+  useEffect(() => {
+    if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d")!;
-      context.drawImage(tracks[track].canvas!, 0, 0);
+      tracks[track].render(context);
+      cars.forEach((car) => car.render(context));
     }
-  }, [track, tracks, canvasRef.current]);
+  }, [track, tracks, canvasRef.current, settings.lastRender]);
 
   return (
     <IonGrid>

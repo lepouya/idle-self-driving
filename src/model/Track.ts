@@ -26,7 +26,7 @@ abstract class Track {
         height="${Track.height}"
         fill="#222222"
       />`,
-      // Road mast
+      // Road mask
       this.path.map(
         (path) =>
           `<path
@@ -124,6 +124,14 @@ abstract class Track {
       height: Track.height,
     });
     return this._imageData;
+  }
+
+  render(context: CanvasRenderingContext2D) {
+    if (!this.canvas) {
+      return;
+    }
+
+    context.drawImage(this.canvas, 0, 0);
   }
 }
 

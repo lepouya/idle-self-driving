@@ -1,9 +1,11 @@
+import Car from "./Car";
+
 export class Settings {
   static singleton = new Settings();
   private constructor(..._: any[]) {}
 
-  ticksPerSecond: number = 50;
-  rendersPerSecond: number = 10;
+  ticksPerSecond: number = 100;
+  rendersPerSecond: number = 30;
   saveFrequencySecs: number = 60;
 
   lastReset: number = Date.now();
@@ -110,6 +112,8 @@ export class Settings {
       dt -= clamp(dt, this.minUpdateSecs, this.maxTickSecs);
       const slice = now - dt * 1000;
       const tick = (slice - lastTick!) * tickScale;
+
+      Car.tickAll(tick);
 
       // Delta: tick
       // Update time: slice

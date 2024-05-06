@@ -21,6 +21,7 @@ import { createRoot } from "react-dom/client";
 import { IonApp, setupIonicReact } from "@ionic/react";
 
 import App from "./model/App";
+import Car from "./model/Car";
 import Track from "./model/Track";
 import DrivingTab from "./pages/DrivingTab";
 import SettingsTab from "./pages/SettingsTab";
@@ -50,6 +51,7 @@ window.addEventListener(
     SettingsTab.init();
     await App.Settings.load();
     await Track.loadAll();
+    await Car.loadAll();
 
     root.render(
       <StrictMode>

@@ -6,7 +6,6 @@ import {
   IonCard,
   IonCardContent,
   IonCardHeader,
-  IonCardSubtitle,
   IonCardTitle,
   IonCheckbox,
   IonCol,
@@ -21,7 +20,6 @@ import App from "../model/App";
 import { Settings } from "../model/Settings";
 import { decode, encode } from "../utils/encoding";
 import Format from "../utils/format";
-import formatWithNotation from "../utils/notation";
 
 export default function SettingsTab() {
   const debug = window.location.search.toLowerCase().includes("debug");
@@ -30,7 +28,6 @@ export default function SettingsTab() {
     <IonGrid>
       <AppDataPanel />
       <AdvancedPanel />
-      <NumberFormatPanel />
       <ResetPanel />
       {debug && <DebugPanel />}
     </IonGrid>
@@ -146,80 +143,6 @@ function AppDataPanel() {
   );
 }
 
-function NumberFormatPanel() {
-  const settings = Settings.singleton;
-  const [format, setFormat] = useState(
-    settings.globalNumberFormat || "Standard",
-  );
-
-  useEffect(() => {
-    settings.globalNumberFormat = format;
-  }, [format]);
-
-  return (
-    <IonCard>
-      <IonCardHeader>
-        <IonCardTitle>
-          <IonRow>
-            <IonCol size="12" className="ion-text-center">
-              <IonText>Number Format</IonText>
-            </IonCol>
-          </IonRow>
-        </IonCardTitle>
-        <IonCardSubtitle>
-          <IonRow>
-            <IonCol size="6" className="ion-text-right">
-              Current number format is:
-            </IonCol>
-            <IonCol size="6" className="ion-text-left">
-              {formatWithNotation.all[format].name}
-            </IonCol>
-          </IonRow>
-        </IonCardSubtitle>
-      </IonCardHeader>
-      <IonCardContent>
-        <IonRow>
-          {Object.values(formatWithNotation.all).map((notation) => (
-            <IonCol
-              size="6"
-              key={`notation-${notation.name}`}
-              className="ion-text-center"
-            >
-              <IonButton
-                onClick={() => setFormat(notation.name)}
-                fill="outline"
-                expand="block"
-              >
-                <IonRow>
-                  <IonCol
-                    size="12"
-                    className="ion-text-center"
-                    style={{ textTransform: "none" }}
-                  >
-                    {notation.name}
-                  </IonCol>
-                  {[123456.789, 123.456e89].map((num, idx) => (
-                    <IonCol
-                      key={`sample-${notation.name}-${idx}`}
-                      size="12"
-                      className="ion-text-center"
-                      style={{ textTransform: "none" }}
-                    >
-                      <IonText color="secondary">
-                        {formatWithNotation(num, notation, 3)}
-                      </IonText>
-                    </IonCol>
-                  ))}
-                </IonRow>
-              </IonButton>
-            </IonCol>
-          ))}
-        </IonRow>
-      </IonCardContent>
-    </IonCard>
-  );
-}
-
 function AdvancedPanel() {
   const settings = App.useSettings();
   const [tps, setTps] = useState(settings.ticksPerSecond);
@@ -265,8 +188,8 @@ function AdvancedPanel() {
           <IonCol size="6"></IonCol>
           <IonCol size="6">
             <IonRange
-              min={1}
-              max={60}
+              min={6}
+              max={100}
               step={1}
               pin={true}
               pinFormatter={(value) => `${Math.floor(1000.0 / value)}ms`}

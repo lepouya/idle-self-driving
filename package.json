@@ -35,8 +35,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-router": "latest",
-    "react-router-dom": "latest",
-    "styled-components": "latest"
+    "react-router-dom": "latest"
   },
   "devDependencies": {
     "@capacitor/cli": "latest",
@@ -44,7 +43,6 @@
     "@types/react-dom": "latest",
     "@types/react-router": "latest",
     "@types/react-router-dom": "latest",
-    "@types/styled-components": "latest",
     "@vitejs/plugin-legacy": "latest",
     "@vitejs/plugin-react": "latest",
     "sass": "latest",
