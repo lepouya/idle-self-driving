@@ -143,7 +143,7 @@ class Car {
 
   tick(dt: number) {
     // Steering
-    this.angle += this.steering * dt;
+    this.angle += this.steering * (Math.PI / 2) * dt;
     if (this.angle > Math.PI) {
       this.angle -= Math.PI * 2;
     } else if (this.angle < -Math.PI) {
@@ -151,7 +151,7 @@ class Car {
     }
 
     // Acceleration and breaking
-    this.speed += this.acceleration * dt;
+    this.speed += this.acceleration * (Car.topSpeed / 2) * dt;
     if (this.speed < 0) {
       this.speed = 0;
     } else if (this.speed > Car.topSpeed) {
