@@ -15,9 +15,10 @@ import Track, { useTracks } from "../model/Track";
 export default function DrivingTab() {
   const settings = App.useSettings();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [track, _setTrack] = useState("Basic");
   const tracks = useTracks();
   const cars = useCars();
+  // TODO: Move this to settings
+  const [track, _setTrack] = useState("Basic");
 
   useEffect(() => {
     cars.forEach((car) => car.placeAtStart(tracks[track]));

@@ -15,7 +15,7 @@ export class Settings {
   lastTick?: number;
 
   minUpdateSecs = 0.001;
-  maxUpdateSecs = 24 * 60 * 60;
+  maxUpdateSecs = 60;
   maxTickSecs = 1;
 
   globalTimeDilation = 1.0;
@@ -113,7 +113,9 @@ export class Settings {
       const slice = now - dt * 1000;
       const tick = (slice - lastTick!) * tickScale;
 
-      Car.tickAll(tick);
+      if (source === "tick") {
+        Car.tickAll(tick);
+      }
 
       // Delta: tick
       // Update time: slice

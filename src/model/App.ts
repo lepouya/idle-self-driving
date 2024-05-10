@@ -11,8 +11,21 @@ function App() {
   const settings = App.useSettings();
 
   useEffect(() => {
-    document.addEventListener("keydown", App.ShortCut.process);
-    return () => document.removeEventListener("keydown", App.ShortCut.process);
+    document.addEventListener("keydown", App.ShortCut.keyDown);
+    App.ShortCut.resetKeys();
+    return () => {
+      document.removeEventListener("keydown", App.ShortCut.keyDown);
+      App.ShortCut.resetKeys();
+    };
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("keyup", App.ShortCut.keyUp);
+    App.ShortCut.resetKeys();
+    return () => {
+      document.removeEventListener("keyup", App.ShortCut.keyUp);
+      App.ShortCut.resetKeys();
+    };
   }, []);
 
   useEffect(() => {
@@ -53,6 +66,7 @@ module App {
     const BLOCKED_DOM_ELEMS = ["TEXTAREA", "INPUT"];
     type ShortcutCallback = (event: KeyboardEvent) => boolean;
     const shortcuts: Record<string, ShortcutCallback[]> = {};
+    const keyMap: Record<string, boolean> = {};
 
     function registerShortcut(key: string, callback: ShortcutCallback) {
       key = key.toLowerCase().replace(/\W/g, "");
@@ -62,17 +76,28 @@ module App {
       }
     }
 
-    export function process(event: KeyboardEvent) {
-      if (
-        event.target &&
-        BLOCKED_DOM_ELEMS.includes(
-          (event.target as HTMLElement).tagName.toUpperCase(),
-        )
-      ) {
+    function isElemBlocked(target: EventTarget | null) {
+      try {
+        return (
+          target &&
+          BLOCKED_DOM_ELEMS.includes(
+            (target as HTMLElement).tagName.toUpperCase(),
+          )
+        );
+      } catch (_) {
+        return false;
+      }
+    }
+
+    export function keyDown(event: KeyboardEvent) {
+      if (isElemBlocked(event.target)) {
         return;
       }
 
-      const callbacks = shortcuts[event.key.toLowerCase()];
+      const key = event.key.toLowerCase().replace(/\W/g, "");
+      keyMap[key] = true;
+
+      const callbacks = shortcuts[key];
       if (callbacks && callbacks.length > 0) {
         callbacks.forEach((cb) => {
           if (cb(event)) {
@@ -81,6 +106,23 @@ module App {
           }
         });
       }
+    }
+
+    export function keyUp(event: KeyboardEvent) {
+      if (isElemBlocked(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase().replace(/\W/g, "");
+      keyMap[key] = false;
+    }
+
+    export function testKey(key: string): boolean {
+      return keyMap[key.toLowerCase().replace(/\W/g, "")] ?? false;
+    }
+
+    export function resetKeys() {
+      Object.keys(keyMap).forEach((key) => (keyMap[key] = false));
     }
 
     export function register(key: string, callback: ShortcutCallback) {
@@ -180,6 +222,14 @@ module App {
 
   export function useSettings() {
     return Settings.useHook();
+  }
+
+  export function isKeyDown(...keys: string[]): boolean {
+    return keys.some(ShortCut.testKey);
+  }
+
+  export function areAllKeysDown(...keys: string[]): boolean {
+    return keys.every(ShortCut.testKey);
   }
 }
 

@@ -1,5 +1,7 @@
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
+import App from "./App";
+import { clamp } from "./Settings";
 import Track from "./Track";
 
 class Car {
@@ -143,7 +145,11 @@ class Car {
 
   tick(dt: number) {
     // Steering
-    this.angle += this.steering * (Math.PI / 2) * dt;
+    this.steering = clamp(this.steering, -1, 1);
+    if (Math.abs(this.steering) >= 0.01) {
+      this.angle += Car.maxSteering * this.steering * dt;
+      this.steering -= Car.friction * Math.sign(this.steering) * dt;
+    }
     if (this.angle > Math.PI) {
       this.angle -= Math.PI * 2;
     } else if (this.angle < -Math.PI) {
@@ -151,11 +157,17 @@ class Car {
     }
 
     // Acceleration and breaking
-    this.speed += this.acceleration * (Car.topSpeed / 2) * dt;
+    this.acceleration = clamp(this.acceleration, -1, 1);
+    if (Math.abs(this.acceleration) >= 0.01) {
+      this.speed += Car.maxAcceleration * this.acceleration * dt;
+      this.acceleration -= Car.friction * Math.sign(this.acceleration) * dt;
+    } else {
+      this.speed -= Car.friction * this.speed * dt;
+    }
     if (this.speed < 0) {
       this.speed = 0;
-    } else if (this.speed > Car.topSpeed) {
-      this.speed = Car.topSpeed;
+    } else if (this.speed > Car.maxSpeed) {
+      this.speed = Car.maxSpeed;
     }
 
     // Movement
@@ -163,15 +175,38 @@ class Car {
     this.position[1] += Math.sin(this.angle) * this.speed * dt;
 
     // Collision
+
+    // Manual controls
+    if (this.name === "Manual") {
+      if (App.isKeyDown("ArrowDown", "S")) {
+        this.acceleration = clamp(this.acceleration - 0.1, -1, -0.1);
+      } else if (App.isKeyDown("ArrowUp", "W")) {
+        this.acceleration = clamp(this.acceleration + 0.1, 0.1, 1);
+      } else {
+        this.acceleration = 0;
+      }
+
+      if (App.isKeyDown("ArrowLeft", "A")) {
+        this.steering = clamp(this.steering - 0.1, -1, -0.1);
+      } else if (App.isKeyDown("ArrowRight", "D")) {
+        this.steering = clamp(this.steering + 0.1, 0.1, 1);
+      } else {
+        this.steering = 0;
+      }
+    }
   }
 
   // Collision detection
 }
 
 module Car {
-  export const width = 20;
-  export const height = 15;
-  export const topSpeed = 100; // px/s
+  export const width = 20; // px
+  export const height = 15; // px
+  // TODO: Move these to settings
+  export const maxSpeed = 100; // px/s
+  export const maxAcceleration = 25; // px/s^2
+  export const maxSteering = Math.PI / 2; // rad/s
+  export const friction = 0.1; // %/s
 
   const carsRegistry = genRegistry<Record<string, Car>>({});
 
