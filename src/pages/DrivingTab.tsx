@@ -9,7 +9,7 @@ import {
 } from "@ionic/react";
 
 import App from "../model/App";
-import { useCars } from "../model/Car";
+import Car, { useCars } from "../model/Car";
 import Track, { useTracks } from "../model/Track";
 
 export default function DrivingTab() {
@@ -21,14 +21,14 @@ export default function DrivingTab() {
   const [track, _setTrack] = useState("Basic");
 
   useEffect(() => {
-    cars.forEach((car) => car.placeAtStart(tracks[track]));
+    cars.forEach((car) => car.placeOnTrack(tracks[track]));
   }, [track]);
 
   useEffect(() => {
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d")!;
       tracks[track].render(context);
-      cars.forEach((car) => car.render(context));
+      Car.renderAll(context);
     }
   }, [track, tracks, canvasRef.current, settings.lastRender]);
 

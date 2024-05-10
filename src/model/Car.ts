@@ -8,13 +8,16 @@ class Car {
   private _imageData: ComposedImage | null = null;
 
   // Position and Motion
-  public position = [0, 0]; // [x, y]
+  public position = { x: 0, y: 0 };
   public angle = 0; // radians. 0 = right, pi/2 = down
   public speed = 0; // px/s
   public steering = 0; // -1 to +1
   public acceleration = 0; // -1 to +1
 
   // Sensors
+  private track: Track | null = null;
+  private sensorsReady = true;
+  public _collided = false;
 
   // Network evaluation
 
@@ -26,27 +29,19 @@ class Car {
 
   get mask(): string {
     return [
-      // Viewbox
       `<svg
         width="${Car.width}px"
         height="${Car.height}px"
         viewBox="0 0 ${Car.width} ${Car.height}"
       >`,
-      // Background
-      `<rect
-        width="${Car.width}"
-        height="${Car.height}"
-        fill="#000000"
-      />`,
-      // Car mask
       `<rect
         width="${Car.width}"
         height="${Car.height}"
         rx="${Car.width / 4}"
         ry="${Car.height / 4}"
-        fill="#dddddd"
+        fill="#d0d0d0"
+        shape-rendering="crispEdges"
       />`,
-      // Closing
       `</svg>`,
     ].join("");
   }
@@ -65,7 +60,7 @@ class Car {
         height="${Car.height}"
         rx="${Car.width / 4}"
         ry="${Car.height / 4}"
-        fill="${this.color}"
+        fill="${this.collided ? "red" : this.color}"
       />`,
       // Wheels
       [
@@ -102,8 +97,23 @@ class Car {
     return this._imageData;
   }
 
-  placeAtStart(track: Track) {
-    this.position = track.startingPoint;
+  get collided() {
+    return this._collided;
+  }
+
+  set collided(value: boolean) {
+    if (this._collided !== value) {
+      this._collided = value;
+      this.fetchImageData();
+    }
+  }
+
+  placeOnTrack(track: Track) {
+    this.track = track;
+
+    // Reset position and angle to start of track
+    this.position.x = track.startingPoint[0];
+    this.position.y = track.startingPoint[1];
     this.angle = Math.atan2(
       track.startingDirection[1],
       track.startingDirection[0],
@@ -113,13 +123,17 @@ class Car {
     this.acceleration = 0;
 
     // Move behind the starting line
-    this.position[0] -= (track.startingDirection[0] * Car.width) / 2;
-    this.position[1] -= (track.startingDirection[1] * Car.height) / 2;
+    this.position.x -= (track.startingDirection[0] * Car.width) / 2;
+    this.position.y -= (track.startingDirection[1] * Car.height) / 2;
 
     // Start on slightly different spots on the starting line
     const fudge = Math.random() * this.fudgeFactor;
-    this.position[0] += fudge * track.startingDirection[1];
-    this.position[1] -= fudge * track.startingDirection[0];
+    this.position.x += fudge * track.startingDirection[1];
+    this.position.y -= fudge * track.startingDirection[0];
+
+    // Reset collision status
+    this.collided = false;
+    this.sensorsReady = true;
   }
 
   render(context: CanvasRenderingContext2D) {
@@ -132,7 +146,7 @@ class Car {
 
     // Move the center of the car to the position
     context.translate(-Car.width / 2, -Car.height / 2);
-    context.translate(this.position[0], this.position[1]);
+    context.translate(this.position.x, this.position.y);
 
     // Rotate the car to the direction it's heading
     context.translate(Car.width / 2, Car.height / 2);
@@ -144,11 +158,22 @@ class Car {
   }
 
   tick(dt: number) {
+    // Don't move if collided
+    if (this.collided) {
+      return;
+    }
+
+    // Manual controls
+    if (this.name === "Manual") {
+      this.manualControl();
+    }
+
     // Steering
     this.steering = clamp(this.steering, -1, 1);
-    if (Math.abs(this.steering) >= 0.01) {
+    if (Math.abs(this.steering) >= 0.01 && this.speed >= 0.01) {
       this.angle += Car.maxSteering * this.steering * dt;
       this.steering -= Car.friction * Math.sign(this.steering) * dt;
+      this.speed -= Car.friction * this.speed * dt;
     }
     if (this.angle > Math.PI) {
       this.angle -= Math.PI * 2;
@@ -171,32 +196,82 @@ class Car {
     }
 
     // Movement
-    this.position[0] += Math.cos(this.angle) * this.speed * dt;
-    this.position[1] += Math.sin(this.angle) * this.speed * dt;
+    this.position.x += Math.cos(this.angle) * this.speed * dt;
+    this.position.y += Math.sin(this.angle) * this.speed * dt;
+    if (this.position.x < 0) {
+      this.position.x = 0;
+      this.speed = 0;
+      this.collided = true;
+    } else if (this.position.x > Track.width) {
+      this.position.x = Track.width;
+      this.speed = 0;
+      this.collided = true;
+    }
+    if (this.position.y < 0) {
+      this.position.y = 0;
+      this.speed = 0;
+      this.collided = true;
+    } else if (this.position.y > Track.height) {
+      this.position.y = Track.height;
+      this.speed = 0;
+      this.collided = true;
+    }
 
     // Collision
-
-    // Manual controls
-    if (this.name === "Manual") {
-      if (App.isKeyDown("ArrowDown", "S")) {
-        this.acceleration = clamp(this.acceleration - 0.1, -1, -0.1);
-      } else if (App.isKeyDown("ArrowUp", "W")) {
-        this.acceleration = clamp(this.acceleration + 0.1, 0.1, 1);
-      } else {
-        this.acceleration = 0;
-      }
-
-      if (App.isKeyDown("ArrowLeft", "A")) {
-        this.steering = clamp(this.steering - 0.1, -1, -0.1);
-      } else if (App.isKeyDown("ArrowRight", "D")) {
-        this.steering = clamp(this.steering + 0.1, 0.1, 1);
-      } else {
-        this.steering = 0;
-      }
+    if (this.track && this.sensorsReady) {
+      this.checkSensors();
     }
   }
 
-  // Collision detection
+  checkSensors() {
+    this.sensorsReady = false;
+
+    composeImage([], {
+      width: Track.width,
+      height: Track.height,
+      sources: [
+        {
+          src: this.track?.mask || "transparent",
+          smoothing: false,
+        },
+        {
+          src: this.mask,
+          position: {
+            x: this.position.x - Car.width / 2,
+            y: this.position.y - Car.height / 2,
+          },
+          rotate: this.angle * (180 / Math.PI),
+          composition: "lighter",
+          smoothing: false,
+        },
+      ],
+    })
+      .then((image) => image.getColorBuckets([0xd0d0d0, 0xe0e0e0], 0x0f))
+      .then((hist) => {
+        this.collided = hist[0xe0e0e0] > 1;
+      })
+      .finally(() => {
+        this.sensorsReady = true;
+      });
+  }
+
+  manualControl() {
+    if (App.isKeyDown("ArrowDown", "S")) {
+      this.acceleration = clamp(this.acceleration - 0.1, -1, -0.1);
+    } else if (App.isKeyDown("ArrowUp", "W")) {
+      this.acceleration = clamp(this.acceleration + 0.1, 0.1, 1);
+    } else {
+      this.acceleration = 0;
+    }
+
+    if (App.isKeyDown("ArrowLeft", "A")) {
+      this.steering = clamp(this.steering - 0.1, -1, -0.1);
+    } else if (App.isKeyDown("ArrowRight", "D")) {
+      this.steering = clamp(this.steering + 0.1, 0.1, 1);
+    } else {
+      this.steering = 0;
+    }
+  }
 }
 
 module Car {

@@ -51,7 +51,7 @@ export class ComposedImage {
     );
   }
 
-  get colorHistogram(): Promise<{ [color: string]: number }> {
+  getColorHistogram(mask = 0xff): Promise<{ [color: string]: number }> {
     return new Promise((resolve, reject) => {
       let data: ImageData | undefined = undefined;
       try {
@@ -74,13 +74,11 @@ export class ComposedImage {
       const hist: { [color: string]: number } = {};
       const len = data.data.length;
       for (let i = 0; i < len; i += 4) {
-        const r = data.data[i];
-        const g = data.data[i + 1];
-        const b = data.data[i + 2];
-        const a = data.data[i + 3];
-        const color = [r, g, b]
-          .map((c) => (c & 0xff).toString(16).padStart(2, "0"))
-          .join("");
+        const r = data.data[i] & mask;
+        const g = data.data[i + 1] & mask;
+        const b = data.data[i + 2] & mask;
+        const a = data.data[i + 3] & mask;
+        const color = hex[r] + hex[g] + hex[b];
 
         if (a > 0) {
           hist[color] = (hist[color] || 0) + 1;
@@ -91,7 +89,67 @@ export class ComposedImage {
     });
   }
 
-  get dominantColor(): Promise<{ r: number; g: number; b: number }> {
+  getColorBuckets(
+    rgbBuckets: (string | number)[],
+    tolerance = 0,
+  ): Promise<{ [color: string]: number }> {
+    return new Promise((resolve, reject) => {
+      let data: ImageData | undefined = undefined;
+      try {
+        const context = this.canvas.getContext("2d")!;
+        data = context.getImageData(
+          0,
+          0,
+          this.canvas.width,
+          this.canvas.height,
+        );
+      } catch {
+        data = undefined;
+      }
+
+      if (!data) {
+        reject(new ImageRenderingError());
+        return;
+      }
+
+      const colors = rgbBuckets.map((color) => {
+        const code = typeof color === "string" ? parseInt(color, 16) : ~~color;
+        const r = (code >> 16) & 0xff;
+        const g = (code >> 8) & 0xff;
+        const b = code & 0xff;
+        return { r, g, b, bucket: color };
+      });
+      const hist: { [color: string]: number } = Object.fromEntries(
+        rgbBuckets.map((color) => [color, 0]),
+      );
+
+      const len = data.data.length;
+      for (let i = 0; i < len; i += 4) {
+        const r = data.data[i] & 0xff;
+        const g = data.data[i + 1] & 0xff;
+        const b = data.data[i + 2] & 0xff;
+        const a = data.data[i + 3] & 0xff;
+
+        if (a > 0) {
+          for (const color of colors) {
+            if (
+              Math.abs(r - color.r) +
+                Math.abs(g - color.g) +
+                Math.abs(b - color.b) <=
+              tolerance
+            ) {
+              hist[color.bucket]++;
+              break;
+            }
+          }
+        }
+      }
+
+      resolve(hist);
+    });
+  }
+
+  getDominantColor(): Promise<{ r: number; g: number; b: number }> {
     return new Promise((resolve, reject) => {
       let data: ImageData | undefined = undefined;
       try {
@@ -289,6 +347,10 @@ const defaultOptions: ImageOptions = {
   format: "image/png",
   quality: 0.92,
 };
+
+const hex = Array.from(Array(0xff).keys()).map((n) =>
+  n.toString(16).padStart(2, "0"),
+);
 
 const transparentGif =
   "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";

@@ -24,7 +24,8 @@ abstract class Track {
       `<rect
         width="${Track.width}"
         height="${Track.height}"
-        fill="#222222"
+        fill="#101010"
+        shape-rendering="crispEdges"
       />`,
       // Road mask
       this.path.map(
@@ -36,6 +37,7 @@ abstract class Track {
             stroke-linecap="round"
             stroke-linejoin="round"
             fill="none"
+            shape-rendering="crispEdges"
           />`,
       ),
       // Closing
@@ -90,9 +92,9 @@ abstract class Track {
             d="${path}"
             stroke="yellow"
             stroke-width="${this.laneMarkingThickness}px"
-            stroke-dasharray="${this.laneMarkingThickness * 3},${
-            this.laneMarkingThickness * 5
-          }"
+            stroke-dasharray="
+              ${this.laneMarkingThickness * 3},
+              ${this.laneMarkingThickness * 5}"
             stroke-dashoffset="${this.laneMarkingThickness}"
             stroke-linecap="round"
             stroke-linejoin="round"
