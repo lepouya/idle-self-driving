@@ -51,17 +51,23 @@ export class ComposedImage {
     );
   }
 
-  getColorHistogram(mask = 0xff): Promise<{ [color: string]: number }> {
+  getColorHistogram(
+    area?: [number, number, number, number] | (Position & Size),
+    mask = 0xff,
+  ): Promise<{ [color: string]: number }> {
     return new Promise((resolve, reject) => {
       let data: ImageData | undefined = undefined;
+
+      const w = this.canvas.width;
+      const h = this.canvas.height;
+      const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
+      const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
+      const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
+      const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
+
       try {
-        const context = this.canvas.getContext("2d")!;
-        data = context.getImageData(
-          0,
-          0,
-          this.canvas.width,
-          this.canvas.height,
-        );
+        const context = this.canvas.getContext("2d", { alpha: false })!;
+        data = context.getImageData(sx, sy, sw, sh);
       } catch {
         data = undefined;
       }
@@ -92,17 +98,21 @@ export class ComposedImage {
   getColorBuckets(
     rgbBuckets: (string | number)[],
     tolerance = 0,
+    area?: [number, number, number, number] | (Position & Size),
   ): Promise<{ [color: string]: number }> {
     return new Promise((resolve, reject) => {
       let data: ImageData | undefined = undefined;
+
+      const w = this.canvas.width;
+      const h = this.canvas.height;
+      const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
+      const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
+      const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
+      const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
+
       try {
-        const context = this.canvas.getContext("2d")!;
-        data = context.getImageData(
-          0,
-          0,
-          this.canvas.width,
-          this.canvas.height,
-        );
+        const context = this.canvas.getContext("2d", { alpha: false })!;
+        data = context.getImageData(sx, sy, sw, sh);
       } catch {
         data = undefined;
       }
@@ -125,10 +135,10 @@ export class ComposedImage {
 
       const len = data.data.length;
       for (let i = 0; i < len; i += 4) {
-        const r = data.data[i] & 0xff;
-        const g = data.data[i + 1] & 0xff;
-        const b = data.data[i + 2] & 0xff;
-        const a = data.data[i + 3] & 0xff;
+        const r = data.data[i];
+        const g = data.data[i + 1];
+        const b = data.data[i + 2];
+        const a = data.data[i + 3];
 
         if (a > 0) {
           for (const color of colors) {
@@ -236,8 +246,8 @@ export default async function composeImage(
     const cy = (getNum(rc, 1, "y") ?? 0.5) * dh + dy;
 
     // Scaling center and factors
-    const kw = getNum(props.scale, 2, "sx") || 1;
-    const kh = getNum(props.scale, 3, "sy") || 1;
+    const kw = getNum(props.scale, 2, "sx") ?? 1;
+    const kh = getNum(props.scale, 3, "sy") ?? 1;
     const kc = typeof props.scale === "number" ? undefined : props.scale;
     const kx = (getNum(kc, 0, "x") ?? 0.5) * dw + dx;
     const ky = (getNum(kc, 1, "y") ?? 0.5) * dh + dy;
@@ -343,6 +353,12 @@ interface Angle {
   a: number;
 }
 
+interface Bounds {
+  min?: number;
+  max?: number;
+  def?: number;
+}
+
 const defaultOptions: ImageOptions = {
   format: "image/png",
   quality: 0.92,
@@ -362,29 +378,51 @@ const plainSvgTemplate =
   '  <rect x="0" y="0" width="1" height="1" fill="{color}" />' +
   "</svg>";
 
-function getNum(v: any, ...idxs: (number | string)[]): number | undefined {
+function getNum(
+  v: any,
+  ...idxs: (number | string | Bounds)[]
+): number | undefined {
+  let ret: number | undefined = undefined;
   if (!v || typeof v === "number") {
-    return v ?? undefined;
+    ret = v ?? undefined;
   } else if (Array.isArray(v)) {
     for (let idx of idxs) {
-      if (typeof idx !== "number") {
+      if (typeof idx === "string") {
         idx = parseInt(idx);
       }
       if (typeof idx === "number" && isFinite(idx)) {
-        const ret = v[idx];
-        if (ret !== null && ret !== undefined && typeof ret === "number") {
-          return ret;
+        const r = v[idx];
+        if (r !== null && r !== undefined && typeof r === "number") {
+          ret = r;
+          break;
         }
       }
     }
   } else if (typeof v === "object") {
     for (let idx of idxs) {
-      const ret = v[idx];
-      if (ret !== null && ret !== undefined && typeof ret === "number") {
-        return ret;
+      if (typeof idx === "string" || typeof idx === "number") {
+        const r = v[idx];
+        if (r !== null && r !== undefined && typeof r === "number") {
+          ret = r;
+          break;
+        }
       }
     }
   }
 
-  return undefined;
+  for (let opt of idxs) {
+    if (opt && typeof opt === "object") {
+      if (opt.def != undefined && ret == undefined) {
+        ret = opt.def;
+      }
+      if (opt.min != undefined && ret != undefined) {
+        ret = Math.max(ret, opt.min);
+      }
+      if (opt.max != undefined && ret != undefined) {
+        ret = Math.min(ret, opt.max);
+      }
+    }
+  }
+
+  return ret;
 }

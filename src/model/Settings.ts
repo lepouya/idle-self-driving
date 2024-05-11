@@ -14,7 +14,7 @@ export class Settings {
   lastRender: number = 0;
   lastTick?: number;
 
-  minUpdateSecs = 0.001;
+  minUpdateSecs = 0.01;
   maxUpdateSecs = 60;
   maxTickSecs = 1;
 
@@ -29,6 +29,8 @@ export class Settings {
       lastTick: number;
       lastDelta: number;
       lastResult: any[];
+      tps: number;
+      fps: number;
     }
   > = {};
 
@@ -92,24 +94,22 @@ export class Settings {
     onRender?: (settings?: this) => void,
   ): any[] {
     // Figure out how long it's been since last tick
-    let dt = clamp(
-      (now - (this.lastTick ?? now)) / 1000,
-      0,
-      this.maxUpdateSecs,
-    );
+    const lastTick = this.lastTick ?? now;
+    let dt = clamp((now - lastTick) / 1000, 0, this.maxUpdateSecs);
     if (dt < this.minUpdateSecs && this.lastTick != undefined) {
       return [];
     }
 
-    const lastTick = this.lastTick ?? now;
     this.lastTick = now;
     const epoch = now - dt * 1000;
 
     // tick all sources
     const results: Record<string, any[]> = {};
     const tickScale = 1 / 1000 / this.globalTimeDilation;
+    const tps = [dt, 0];
     while (dt > 0) {
       dt -= clamp(dt, this.minUpdateSecs, this.maxTickSecs);
+      tps[1]++;
       const slice = now - dt * 1000;
       const tick = (slice - lastTick!) * tickScale;
 
@@ -119,14 +119,6 @@ export class Settings {
 
       // Delta: tick
       // Update time: slice
-      results["__Settings_slices"] = [
-        ...(results["__Settings_slices"] || []),
-        slice,
-      ];
-      results["__Settings_ticks"] = [
-        ...(results["__Settings_ticks"] || []),
-        tick,
-      ];
     }
 
     // Update execution status
@@ -136,14 +128,13 @@ export class Settings {
       lastResult: Object.values(results)
         .flat()
         .filter((value, index, self) => self.indexOf(value) === index),
+      tps: (this.execution[source]?.tps || 0) * 0.9 + (tps[1] / tps[0]) * 0.1,
+      fps: this.execution[source]?.fps || 0,
     };
 
     // Call the onUpdateComplete callback
     if (this.onTickComplete) {
-      const updateResult = this.onTickComplete((now - epoch) / 1000, source);
-      if (updateResult) {
-        results["__Settings_onUpdateComplete"] = [updateResult];
-      }
+      this.onTickComplete((now - epoch) / 1000, source);
     }
 
     // Callbacks for save and render in main loop
@@ -160,6 +151,9 @@ export class Settings {
       onRender &&
       this.lastTick - this.lastRender >= 1000.0 / this.rendersPerSecond
     ) {
+      this.execution[source].fps =
+        (this.execution[source].fps || 0) * 0.9 +
+        (1000.0 / (this.lastTick - this.lastRender)) * 0.1;
       this.lastRender = this.lastTick;
       onRender(this);
     }

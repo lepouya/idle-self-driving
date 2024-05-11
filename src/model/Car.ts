@@ -8,16 +8,24 @@ class Car {
   private _imageData: ComposedImage | null = null;
 
   // Position and Motion
+  private track: Track | null = null;
   public position = { x: 0, y: 0 };
   public angle = 0; // radians. 0 = right, pi/2 = down
   public speed = 0; // px/s
   public steering = 0; // -1 to +1
   public acceleration = 0; // -1 to +1
 
+  // State and scoring
+  public odometer = 0;
+  public laps = 0;
+  private inCrossing = false;
+  public startTime = 0;
+  public endTime = 0;
+  public collided = false;
+  private pastTracking: { x: number; y: number }[] = [];
+
   // Sensors
-  private track: Track | null = null;
   private sensorsReady = true;
-  public _collided = false;
 
   // Network evaluation
 
@@ -89,23 +97,26 @@ class Car {
     return this._imageData?.canvas;
   }
 
+  get score() {
+    const now = Date.now();
+    const distance = this.odometer / Math.max(Car.width, Car.height);
+    const time = ((this.endTime || now) - (this.startTime || now)) / 1000;
+    return {
+      distance,
+      time,
+      laps: this.laps,
+      success: !this.collided && this.laps >= 3 && this.startTime > 0,
+      score:
+        distance - time + (this.laps + Math.sign(this.startTime)) ** 2 * 10,
+    };
+  }
+
   async fetchImageData() {
     this._imageData = await composeImage([this.image], {
       width: Car.width,
       height: Car.height,
     });
     return this._imageData;
-  }
-
-  get collided() {
-    return this._collided;
-  }
-
-  set collided(value: boolean) {
-    if (this._collided !== value) {
-      this._collided = value;
-      this.fetchImageData();
-    }
   }
 
   placeOnTrack(track: Track) {
@@ -131,9 +142,28 @@ class Car {
     this.position.x += fudge * track.startingDirection[1];
     this.position.y -= fudge * track.startingDirection[0];
 
-    // Reset collision status
+    // Reset scoring state
+    this.odometer = 0;
+    this.laps = 0;
+    this.inCrossing = false;
+    this.startTime = 0;
+    this.endTime = 0;
     this.collided = false;
+    this.fetchImageData();
+    this.pastTracking = [];
+
+    // Reset collision status
     this.sensorsReady = true;
+  }
+
+  endRun(collided = true) {
+    this.endTime = Date.now();
+    if (!this.startTime) {
+      this.startTime = this.endTime;
+    }
+    this.inCrossing = false;
+    this.collided = collided;
+    this.fetchImageData();
   }
 
   render(context: CanvasRenderingContext2D) {
@@ -155,6 +185,33 @@ class Car {
 
     context.drawImage(this.canvas, 0, 0);
     context.restore();
+
+    // composeImage([], {
+    //   width: Track.width / 2,
+    //   height: Track.height / 2,
+    //   sources: [
+    //     {
+    //       src: this.track?.mask || "transparent",
+    //       stretch: 0.5,
+    //       smoothing: false,
+    //     },
+    //     {
+    //       src: this.mask,
+    //       position: {
+    //         x: (this.position.x - Car.width / 2) / 2,
+    //         y: (this.position.y - Car.height / 2) / 2,
+    //       },
+    //       rotate: this.angle * (180 / Math.PI),
+    //       stretch: 0.5,
+    //       composition: "lighter",
+    //       smoothing: false,
+    //     },
+    //   ],
+    // }).then((image) => {
+    //   context.resetTransform();
+    //   context.clearRect(0, 0, image.canvas.width, image.canvas.height);
+    //   context.drawImage(image.canvas, 0, 0);
+    // });
   }
 
   tick(dt: number) {
@@ -189,32 +246,42 @@ class Car {
     } else {
       this.speed -= Car.friction * this.speed * dt;
     }
-    if (this.speed < 0) {
-      this.speed = 0;
-    } else if (this.speed > Car.maxSpeed) {
-      this.speed = Car.maxSpeed;
-    }
+    this.speed = clamp(this.speed, 0, Car.maxSpeed);
 
     // Movement
     this.position.x += Math.cos(this.angle) * this.speed * dt;
     this.position.y += Math.sin(this.angle) * this.speed * dt;
-    if (this.position.x < 0) {
-      this.position.x = 0;
-      this.speed = 0;
-      this.collided = true;
-    } else if (this.position.x > Track.width) {
-      this.position.x = Track.width;
-      this.speed = 0;
-      this.collided = true;
+    this.odometer += this.speed * dt;
+    if (
+      this.position.x <= 0 ||
+      this.position.x >= Track.width ||
+      this.position.y <= 0 ||
+      this.position.y >= Track.height
+    ) {
+      return this.endRun();
     }
-    if (this.position.y < 0) {
-      this.position.y = 0;
-      this.speed = 0;
-      this.collided = true;
-    } else if (this.position.y > Track.height) {
-      this.position.y = Track.height;
-      this.speed = 0;
-      this.collided = true;
+
+    // Tracking
+    const trackingRadius = Math.max(
+      Car.width,
+      Car.height,
+      this.track?.roadThickness || 0,
+    );
+    const dists = this.pastTracking.map((p) =>
+      Math.hypot(p.x - this.position.x, p.y - this.position.y),
+    );
+    if (dists.length === 0 || dists.every((d) => d > trackingRadius)) {
+      // Record a new position on tracking
+      this.pastTracking.unshift({ x: this.position.x, y: this.position.y });
+      if (this.pastTracking.length > 3) {
+        this.pastTracking.pop();
+      }
+    } else if (
+      dists.length > 1 &&
+      dists.slice(1).some((d) => d < trackingRadius)
+    ) {
+      // Went back on the track
+      return this.endRun();
     }
 
     // Collision
@@ -225,6 +292,8 @@ class Car {
 
   checkSensors() {
     this.sensorsReady = false;
+
+    const sensorRadius = Math.max(Car.width / 2 + 1, Car.height / 2 + 1);
 
     composeImage([], {
       width: Track.width,
@@ -246,9 +315,47 @@ class Car {
         },
       ],
     })
-      .then((image) => image.getColorBuckets([0xd0d0d0, 0xe0e0e0], 0x0f))
+      .then((image) =>
+        image.getColorBuckets([0xd0d0d0, 0xe0d0d0, 0xe0e0e0], 0x0f, {
+          x: this.position.x - sensorRadius,
+          y: this.position.y - sensorRadius,
+          w: sensorRadius * 2,
+          h: sensorRadius * 2,
+        }),
+      )
       .then((hist) => {
-        this.collided = hist[0xe0e0e0] > 1;
+        // Crossing the start/finish line
+        if (hist[0xe0d0d0] > 0 && !this.inCrossing) {
+          this.inCrossing = true;
+
+          // Crossing in the wrong direction!
+          if (
+            Math.abs(
+              this.angle -
+                Math.atan2(
+                  this.track?.startingDirection[1] ?? 0,
+                  this.track?.startingDirection[0] ?? 0,
+                ),
+            ) >
+            Math.PI / 2
+          ) {
+            return this.endRun();
+          }
+
+          // First crossing starts the timer instead of counting as a lap
+          if (!this.startTime) {
+            this.startTime = Date.now();
+          } else {
+            this.laps++;
+          }
+        } else if (hist[0xe0d0d0] < 1 && this.inCrossing) {
+          this.inCrossing = false;
+        }
+
+        // Went outside the track
+        if (hist[0xe0e0e0] > 1) {
+          return this.endRun();
+        }
       })
       .finally(() => {
         this.sensorsReady = true;

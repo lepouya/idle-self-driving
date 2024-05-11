@@ -20,7 +20,7 @@ abstract class Track {
         height="${Track.height}px"
         viewBox="0 0 ${Track.width} ${Track.height}"
       >`,
-      // Background
+      // Off-course
       `<rect
         width="${Track.width}"
         height="${Track.height}"
@@ -40,6 +40,16 @@ abstract class Track {
             shape-rendering="crispEdges"
           />`,
       ),
+      // Starting line
+      `<path
+        d="M ${this.startingPoint[0]} ${this.startingPoint[1]} l ${
+        Math.sign(this.startingDirection[0]) * this.laneMarkingThickness
+      } ${Math.sign(this.startingDirection[1]) * this.laneMarkingThickness}"
+        stroke="#100000"
+        stroke-width="${this.roadThickness}px"
+        stroke-linecap="butt"
+        fill="none"
+      />`,
       // Closing
       `</svg>`,
     ].join("");
