@@ -23,6 +23,16 @@ export class Settings {
 
   onTickComplete?: (dt: number, source: string) => any;
 
+  currentTrack = "Basic";
+  trackWidth = 800; // px
+  trackHeight = 600; // px
+  trackFriction = 0.1; // %/s
+  carWidth = 20; // px
+  carHeight = 15; // px
+  maxSpeed = 100; // px/s
+  maxAcceleration = 25; // px/s^2
+  maxSteering = Math.PI / 2; // rad/s
+
   execution: Record<
     string,
     {
@@ -71,8 +81,11 @@ export class Settings {
     for (k in settings) {
       if (settings[k] == undefined || settings[k] == null) {
         continue;
-      } else if (k === "execution") {
-        Object.assign(this[k], settings[k]);
+      } else if (
+        typeof this[k] === "object" &&
+        typeof settings[k] === "object"
+      ) {
+        Object.assign((this as any)[k], settings[k]);
       } else {
         (this as any)[k] = settings[k];
       }

@@ -1,6 +1,7 @@
 import { Redirect, Route } from "react-router-dom";
 
 import {
+  IonChip,
   IonContent,
   IonHeader,
   IonLabel,
@@ -28,7 +29,26 @@ export default function TabApp() {
               <IonPage>
                 <IonHeader>
                   <IonToolbar>
-                    <IonTitle>{tab.title || tab.path}</IonTitle>
+                    <IonTitle slot="start">{tab.title || tab.path}</IonTitle>
+                    <IonChip slot="end" color="success">
+                      &#169; 2024 &nbsp;
+                      <a
+                        href="https://github.com/lepouya"
+                        target="_blank"
+                        style={{ textDecoration: "none" }}
+                      >
+                        @lepouya
+                      </a>
+                    </IonChip>
+                    <IonChip slot="end" color="light">
+                      <a
+                        href="https://github.com/lepouya/idle-self-driving"
+                        target="_blank"
+                        style={{ textDecoration: "none" }}
+                      >
+                        <small>view source</small>
+                      </a>
+                    </IonChip>
                   </IonToolbar>
                 </IonHeader>
                 <IonContent>{tab.content}</IonContent>

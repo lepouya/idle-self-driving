@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import {
   IonCol,
@@ -12,7 +12,7 @@ import {
 
 import App from "../model/App";
 import Car, { useCars } from "../model/Car";
-import Track, { useTracks } from "../model/Track";
+import { useTracks } from "../model/Track";
 import Format from "../utils/format";
 
 export default function DrivingTab() {
@@ -20,20 +20,20 @@ export default function DrivingTab() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tracks = useTracks();
   const cars = useCars();
-  // TODO: Move this to settings
-  const [track, setTrack] = useState("Basic");
+
+  const track = tracks[settings.currentTrack];
 
   useEffect(() => {
-    cars.forEach((car) => car.placeOnTrack(tracks[track]));
+    cars.forEach((car) => car.placeOnTrack(track));
   }, [track]);
 
   useEffect(() => {
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d", { alpha: false })!;
-      tracks[track].render(context);
+      track.render(context);
       Car.renderAll(context);
     }
-  }, [track, tracks, canvasRef.current, settings.lastRender]);
+  }, [settings.currentTrack, canvasRef.current, settings.lastRender]);
 
   return (
     <IonGrid>
@@ -41,8 +41,8 @@ export default function DrivingTab() {
         <IonCol size="8">
           <canvas
             ref={canvasRef}
-            width={`${Track.width}px`}
-            height={`${Track.height}px`}
+            width={`${settings.trackWidth}px`}
+            height={`${settings.trackHeight}px`}
           ></canvas>
         </IonCol>
         <IonCol size="4">
@@ -63,8 +63,11 @@ export default function DrivingTab() {
               label="Track Selection"
               labelPlacement="stacked"
               interface="popover"
-              value={track}
-              onIonChange={(e) => setTrack(e.detail.value)}
+              value={settings.currentTrack}
+              onIonChange={(e) => {
+                settings.currentTrack = e.detail.value;
+                App.Settings.signalUpdate();
+              }}
             >
               {Object.keys(tracks).map((name) => (
                 <IonSelectOption value={name} key={name}>
