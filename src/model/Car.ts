@@ -1,6 +1,7 @@
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
 import App from "./App";
+import Sensor from "./Sensor";
 import { clamp, Settings } from "./Settings";
 import Track from "./Track";
 
@@ -26,9 +27,8 @@ class Car {
   public endTime = 0;
   public collided = false;
   private pastTracking: { x: number; y: number }[] = [];
-
-  // Sensors
   private sensorsReady = true;
+  public visualizeSensors = false;
 
   // Network evaluation
 
@@ -50,7 +50,7 @@ class Car {
         height="${this.height}"
         rx="${this.width / 4}"
         ry="${this.height / 4}"
-        fill="#d0d0d0"
+        fill="${Sensor.color.vehicle}"
         shape-rendering="crispEdges"
       />`,
       `</svg>`,
@@ -100,6 +100,14 @@ class Car {
     return this._imageData?.canvas;
   }
 
+  async fetchImageData() {
+    this._imageData = await composeImage([this.image], {
+      width: this.width,
+      height: this.height,
+    });
+    return this._imageData;
+  }
+
   get score() {
     const now = Date.now();
     const distance = this.odometer / Math.max(this.width, this.height);
@@ -112,14 +120,6 @@ class Car {
       score:
         distance - time + (this.laps + Math.sign(this.startTime)) ** 2 * 10,
     };
-  }
-
-  async fetchImageData() {
-    this._imageData = await composeImage([this.image], {
-      width: this.width,
-      height: this.height,
-    });
-    return this._imageData;
   }
 
   placeOnTrack(track: Track) {
@@ -172,46 +172,17 @@ class Car {
     }
 
     context.save();
+
     context.resetTransform();
-
-    // Move the center of the car to the position
-    context.translate(-this.width / 2, -this.height / 2);
     context.translate(this.position.x, this.position.y);
-
-    // Rotate the car to the direction it's heading
-    context.translate(this.width / 2, this.height / 2);
     context.rotate(this.angle);
-    context.translate(-this.width / 2, -this.height / 2);
 
-    context.drawImage(this.canvas, 0, 0);
+    if (this.visualizeSensors) {
+      Sensor.getAll().forEach((sensor) => sensor.render(context));
+    }
+    context.drawImage(this.canvas, -this.width / 2, -this.height / 2);
+
     context.restore();
-
-    // composeImage([], {
-    //   width: Track.width / 2,
-    //   height: Track.height / 2,
-    //   sources: [
-    //     {
-    //       src: this.track?.mask || "transparent",
-    //       stretch: 0.5,
-    //       smoothing: false,
-    //     },
-    //     {
-    //       src: this.mask,
-    //       position: {
-    //         x: (this.position.x - this.width / 2) / 2,
-    //         y: (this.position.y - this.height / 2) / 2,
-    //       },
-    //       rotate: this.angle * (180 / Math.PI),
-    //       stretch: 0.5,
-    //       composition: "lighter",
-    //       smoothing: false,
-    //     },
-    //   ],
-    // }).then((image) => {
-    //   context.resetTransform();
-    //   context.clearRect(0, 0, image.canvas.width, image.canvas.height);
-    //   context.drawImage(image.canvas, 0, 0);
-    // });
   }
 
   tick(dt: number) {
@@ -297,7 +268,7 @@ class Car {
     }
 
     this.sensorsReady = false;
-    const sensorRadius = Math.max(this.width / 2, this.height / 2) + 1;
+    const sensors = Sensor.getAll();
 
     composeImage([], {
       width: this.track.width,
@@ -317,44 +288,79 @@ class Car {
           composition: "lighter",
           smoothing: false,
         },
+        ...sensors.map((sensor) => ({
+          src: sensor.mask,
+          position: {
+            x: this.position.x - sensor.radius,
+            y: this.position.y - sensor.radius,
+          },
+          rotate: this.angle * (180 / Math.PI),
+          composition: "lighter" as const,
+          smoothing: false,
+        })),
       ],
     })
-      .then((image) =>
-        image.getColorBuckets([0xd0d0d0, 0xe0d0d0, 0xe0e0e0], 0x0f, {
-          x: this.position.x - sensorRadius,
-          y: this.position.y - sensorRadius,
-          w: sensorRadius * 2,
-          h: sensorRadius * 2,
-        }),
-      )
-      .then((hist) => {
-        // Crossing the start/finish line
-        if (hist[0xe0d0d0] > 0 && !this.inCrossing) {
-          this.inCrossing = true;
-
-          // Crossing in the wrong direction!
-          if (Math.abs(this.angle - this.track!.startingAngle) > Math.PI / 2) {
-            return this.endRun();
-          }
-
-          // First crossing starts the timer instead of counting as a lap
-          if (!this.startTime) {
-            this.startTime = Date.now();
-          } else {
-            this.laps++;
-          }
-        } else if (hist[0xe0d0d0] < 1 && this.inCrossing) {
-          this.inCrossing = false;
-        }
-
-        // Went outside the track
-        if (hist[0xe0e0e0] > 1) {
+      .then((image) => {
+        return Promise.all([
+          this.checkCollision(image),
+          ...sensors.map((sensor) => sensor.read(image, this.position)),
+        ]);
+      })
+      .then((readings) => {
+        const [collision, ...sensorReadings] = readings;
+        if (collision) {
           return this.endRun();
         }
+
+        // Eval net using sensors
       })
       .finally(() => {
         this.sensorsReady = true;
       });
+  }
+
+  async checkCollision(composedMask: ComposedImage): Promise<boolean> {
+    const carRadius = Math.max(this.width / 2, this.height / 2) + 1;
+    const hist = await composedMask.getColorBuckets(
+      [
+        Sensor.vehicle + Sensor.available,
+        Sensor.vehicle + Sensor.lapLine,
+        Sensor.vehicle + Sensor.offTrack,
+      ],
+      0x0f,
+      {
+        x: this.position.x - carRadius,
+        y: this.position.y - carRadius,
+        w: carRadius * 2,
+        h: carRadius * 2,
+      },
+    );
+
+    // Crossing the start/finish line
+    if (hist[Sensor.vehicle + Sensor.lapLine] > 0 && !this.inCrossing) {
+      this.inCrossing = true;
+
+      // Crossing in the wrong direction!
+      if (Math.abs(this.angle - this.track!.startingAngle) > Math.PI / 2) {
+        return true;
+      }
+
+      // First crossing starts the timer instead of counting as a lap
+      if (!this.startTime) {
+        this.startTime = Date.now();
+      } else {
+        this.laps++;
+      }
+    } else if (hist[Sensor.vehicle + Sensor.lapLine] < 1 && this.inCrossing) {
+      this.inCrossing = false;
+    }
+
+    // Went outside the track
+    if (hist[Sensor.vehicle + Sensor.offTrack] > 1) {
+      return true;
+    }
+
+    return false;
   }
 
   manualControl() {

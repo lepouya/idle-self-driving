@@ -1,5 +1,6 @@
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
+import Sensor from "./Sensor";
 import { Settings } from "./Settings";
 
 abstract class Track {
@@ -32,7 +33,7 @@ abstract class Track {
       `<rect
         width="${this.width}"
         height="${this.height}"
-        fill="#101010"
+        fill="${Sensor.color.offTrack}"
         shape-rendering="crispEdges"
       />`,
       // Road mask
@@ -40,7 +41,7 @@ abstract class Track {
         (path) =>
           `<path
             d="${path}"
-            stroke="#000000"
+            stroke="${Sensor.color.available}"
             stroke-width="${this.roadThickness}px"
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -53,7 +54,7 @@ abstract class Track {
         d="M ${this.startingPoint.x} ${this.startingPoint.y} l ${
         Math.sign(this.startingDirection.x) * this.laneMarkingThickness
       } ${Math.sign(this.startingDirection.y) * this.laneMarkingThickness}"
-        stroke="#100000"
+        stroke="${Sensor.color.lapLine}"
         stroke-width="${this.roadThickness}px"
         stroke-linecap="butt"
         fill="none"

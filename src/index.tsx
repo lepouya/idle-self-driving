@@ -22,6 +22,7 @@ import { IonApp, setupIonicReact } from "@ionic/react";
 
 import App from "./model/App";
 import Car from "./model/Car";
+import Sensor from "./model/Sensor";
 import Track from "./model/Track";
 import DrivingTab from "./pages/DrivingTab";
 import SettingsTab from "./pages/SettingsTab";
@@ -50,8 +51,7 @@ window.addEventListener(
     DrivingTab.init();
     SettingsTab.init();
     await App.Settings.load();
-    await Track.loadAll();
-    await Car.loadAll();
+    await Promise.all([Track.loadAll(), Car.loadAll(), Sensor.loadAll()]);
 
     root.render(
       <StrictMode>

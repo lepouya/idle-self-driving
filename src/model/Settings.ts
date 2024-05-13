@@ -1,4 +1,5 @@
 import Car from "./Car";
+import Sensor from "./Sensor";
 
 export class Settings {
   static singleton = new Settings();
@@ -32,6 +33,14 @@ export class Settings {
   maxSpeed = 100; // px/s
   maxAcceleration = 25; // px/s^2
   maxSteering = Math.PI / 2; // rad/s
+
+  sensorConfig: Sensor.Configuration[] = [
+    { index: 0, angle: 0, range: 100, width: 4 },
+    { index: 1, angle: Math.PI / 6, range: 100, width: 2 },
+    { index: 2, angle: -Math.PI / 6, range: 100, width: 2 },
+    { index: 3, angle: Math.PI / 3, range: 100, width: 2 },
+    { index: 4, angle: -Math.PI / 3, range: 100, width: 2 },
+  ];
 
   execution: Record<
     string,
