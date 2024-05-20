@@ -1,8 +1,34 @@
-
-
 class Network {
   constructor(public readonly config: Network.NetworkConfig) {
     this.validate();
+  }
+
+  static init(input: number, output: number, hidden: number[]): Network {
+    if (!input) {
+      throw new Error("Invalid input count");
+    }
+    if (!output) {
+      throw new Error("Invalid output count");
+    }
+    if (!hidden) {
+      hidden = [];
+    }
+
+    const weights = [];
+    for (let i = 0; i < hidden.length + 1; i++) {
+      const layer_in = i === 0 ? input : hidden[i - 1];
+      const layer_out = i === hidden.length ? output : hidden[i];
+      const layer = [];
+      for (let j = 0; j < layer_out; j++) {
+        const neuron = [];
+        for (let k = 0; k < layer_in + 1; k++) {
+          neuron.push(0);
+        }
+        layer.push(neuron);
+      }
+      weights.push(layer);
+    }
+    return new Network({ input, output, hidden, weights });
   }
 
   validate() {
@@ -36,23 +62,18 @@ class Network {
   }
 
   eval(input: number[]): number[] {
-    const { weights } = this.config;
+    const weights = this.config.weights;
     let layer_in = input;
     for (let layer_idx = 0; layer_idx < weights.length; layer_idx++) {
       let layer_out: number[] = [];
-      for (
-        let neuron_idx = 0;
-        neuron_idx < weights[layer_idx].length;
-        neuron_idx++
-      ) {
+      for (let idx_out = 0; idx_out < weights[layer_idx].length; idx_out++) {
         let sum = 0;
         // Weights
-        for (let input_idx = 0; input_idx < layer_in.length - 1; input_idx++) {
-          sum +=
-            layer_in[input_idx] * weights[layer_idx][neuron_idx][input_idx];
+        for (let idx_in = 0; idx_in < layer_in.length - 1; idx_in++) {
+          sum += layer_in[idx_in] * weights[layer_idx][idx_out][idx_in];
         }
         // Bias
-        sum += weights[layer_idx][neuron_idx][layer_in.length - 1];
+        sum += weights[layer_idx][idx_out][layer_in.length - 1];
         // Activation
         layer_out.push(this.activation(sum));
       }
