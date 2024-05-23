@@ -1,6 +1,5 @@
-let skipEncoding = false;
 export function codec(s: string): string {
-  if (skipEncoding || !s) {
+  if (codec.skipEncoding || !s) {
     return s;
   }
 
@@ -15,6 +14,8 @@ export function codec(s: string): string {
       .join("")
   );
 }
+
+codec.skipEncoding = false;
 
 export function stringify<T>(value: T, space?: string | number | undefined) {
   const seen: any[] = [];
@@ -41,11 +42,9 @@ export function stringify<T>(value: T, space?: string | number | undefined) {
 }
 
 export function encode<T>(value: T, pretty = false) {
-  let data = stringify(value, pretty ? 2 : undefined);
+  const data = stringify(value, pretty ? 2 : undefined);
   if (!pretty) {
-    data = encodeURIComponent(data);
-    data = codec(data);
-    data = window.btoa(data);
+    return window.btoa(codec(encodeURIComponent(data)));
   }
   return data;
 }
@@ -55,24 +54,18 @@ export function decode<T>(data: string): T | undefined {
     return (data as T) ?? undefined;
   }
 
-  let parsed: T | undefined = undefined;
-  if (!parsed) {
-    try {
-      parsed = JSON.parse(decodeURIComponent(codec(window.atob(data))));
-    } catch {
-      parsed = undefined;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(codec(window.atob(data))));
+    if (parsed) {
+      return parsed;
     }
-  }
-  if (!parsed) {
-    try {
-      parsed = JSON.parse(data);
-    } catch {
-      parsed = undefined;
+  } catch {}
+  try {
+    const parsed = JSON.parse(data);
+    if (parsed) {
+      return parsed;
     }
-  }
-  if (!parsed) {
-    parsed = data as T;
-  }
+  } catch {}
 
-  return parsed;
+  return data as T;
 }

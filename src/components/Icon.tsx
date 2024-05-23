@@ -2,7 +2,7 @@ import * as IonicIcons from "ionicons/icons";
 
 import { IonIcon } from "@ionic/react";
 
-let Icons: Record<string, string> = IonicIcons;
+const Icons: Record<string, string> = IonicIcons;
 
 export default function Icon({
   icon,
@@ -13,7 +13,7 @@ export default function Icon({
   src?: string;
   [key: string]: any;
 }) {
-  let parsedIcon = icon || src || "";
+  const parsedIcon = icon || src || "";
 
   if (parsedIcon.startsWith("data:")) {
     return <IonIcon icon={parsedIcon} {...props} />;

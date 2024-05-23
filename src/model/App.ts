@@ -173,7 +173,7 @@ module App {
     }
 
     export async function write<T>(key: string, value: T, pretty = false) {
-      let data = encode(value, pretty);
+      const data = encode(value, pretty);
       await initialize();
       return await storage.db?.set(key, data);
     }

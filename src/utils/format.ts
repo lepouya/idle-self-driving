@@ -1,5 +1,3 @@
-import formatWithNotation, { Notation } from "./notation";
-
 export default function Format(
   value?: number | string | Date | undefined | null,
   options?: NumberOptions & TimeOptions & WordOptions,
@@ -16,25 +14,18 @@ export default function Format(
 }
 
 type NumberOptions = {
-  notation?: Notation | string;
-  len?: "tiny" | "short" | "long";
   prec?: number;
-  expPrec?: number;
   smallPrec?: number;
   alwaysShowSign?: boolean;
 };
 
 Format.number = function (num: number, options?: NumberOptions): string {
-  const prec = options?.prec ?? 0;
-  const smallPrec = options?.smallPrec ?? prec;
-  const expPrec =
-    options?.expPrec ??
-    Math.max(
-      prec,
-      options?.len === "tiny" ? 0 : options?.len === "short" ? 2 : 3,
-    );
+  const prec =
+    (Math.log10(Math.abs(num)) < 3 ? options?.smallPrec : options?.prec) ??
+    options?.prec ??
+    0;
 
-  let r = formatWithNotation(num, options?.notation, prec, expPrec, smallPrec);
+  let r = isFinite(num) ? num.toFixed(prec) : num.toString();
   if (r && options?.alwaysShowSign && !"+-".includes(r[0]) && num >= 0) {
     r = "+" + r;
   }
@@ -105,7 +96,7 @@ Format.time = function (time: number, options?: TimeOptions): string {
     return now;
   }
 
-  let parts = [];
+  let parts: string[] = [];
   if (len !== "long") {
     parts = [
       years > 0 ? years.toFixed(0) : "",
@@ -142,7 +133,7 @@ Format.time = function (time: number, options?: TimeOptions): string {
 
   parts = parts.filter((word) => !!word);
   if (parts.length > 2) {
-    const pop = parts.pop();
+    const pop = parts.pop()!;
     parts = [parts.join(sep), pop];
   }
 
