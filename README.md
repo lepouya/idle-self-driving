@@ -21,6 +21,6 @@ Playing with this idea I have for a self-training driving system.
 - ~~Car object and rendering~~
 - ~~Sensor objects and rendering~~
 - ~~Network objects and rendering~~
-- Racing and scoring
-- Auto run multiple instances at once
-- Tweaks
+- ~~Racing and scoring~~
+- ~~Auto run multiple instances at once~~
+- Customization screen for sensors and network
