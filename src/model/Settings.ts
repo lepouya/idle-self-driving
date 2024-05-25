@@ -44,16 +44,20 @@ export class Settings {
 
   trackWidth = 800; // px
   trackHeight = 600; // px
+
   currentTrack = "Basic";
 
   /// Car configuration
 
   carWidth = 20; // px
   carHeight = 15; // px
+
   friction = 0.1; // %/s
   maxSpeed = 100; // px/s
   maxAcceleration = 25; // px/s^2
   maxSteering = Math.PI / 2; // rad/s
+
+  manualControl = false;
 
   /// Sensors configuration
 

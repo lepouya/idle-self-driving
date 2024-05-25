@@ -212,8 +212,7 @@ class BasicTrack extends Track {
 class AdvancedTrack extends Track {
   get path(): string[] {
     return [
-      "M 750 50 h -300 l -200 100 l -100 -70 h -100 v 450 h 300 v -50 h 100 v -300 h 70 v 380 h 150 Z",
-      "M 250 225 q -100 0 -100 100 t 100 100 t 100 -100 t -100 -100 Z",
+      "M 750 50 h -300 l -200 100 l -100 -70 h -100 v 450 h 300 v -150 h 50 v -200 h 100 v 380 h 150 Z",
     ];
   }
   get roadThickness() {

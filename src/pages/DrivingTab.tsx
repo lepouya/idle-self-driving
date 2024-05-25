@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import {
+  IonButton,
   IonCol,
   IonGrid,
   IonItem,
@@ -36,6 +37,7 @@ export default function DrivingTab() {
   }, [settings.currentTrack, canvasRef.current, settings.lastRender]);
 
   const highScore = Math.max(...cars.map((car) => car.score.score)) || 0;
+  const activeCars = cars.filter((car) => !car.collided).length;
 
   return (
     <IonGrid>
@@ -49,16 +51,27 @@ export default function DrivingTab() {
         </IonCol>
         <IonCol size="4">
           <IonItem>
-            <IonLabel>Simulation Speed</IonLabel>
+            <IonLabel>Iteration {settings.numIterations + 1}</IonLabel>
+            <IonButton
+              slot="end"
+              expand="block"
+              onClick={() => Car.nextGeneration(track)}
+            >
+              Next Generation
+            </IonButton>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Leader Score</IonLabel>
+            <IonLabel slot="end">{Format(highScore, { prec: 2 })}</IonLabel>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Active Cars</IonLabel>
             <IonLabel slot="end">
-              {Format(settings.execution["tick"]?.tps || 0)} tps
+              {activeCars}/{cars.length}
             </IonLabel>
           </IonItem>
           <IonItem>
-            <IonLabel>Rendering Speed</IonLabel>
-            <IonLabel slot="end">
-              {Format(settings.execution["tick"]?.fps || 0)} fps
-            </IonLabel>
+            <IonLabel>&nbsp;</IonLabel>
           </IonItem>
           <IonItem>
             <IonSelect
@@ -86,18 +99,23 @@ export default function DrivingTab() {
                   highScore,
                   settings.sotaScore[settings.currentTrack] || 0,
                 ),
-                {
-                  prec: 2,
-                },
+                { prec: 2 },
               )}
             </IonLabel>
           </IonItem>
           <IonItem>
-            <IonLabel>Current Leader Score</IonLabel>
+            <IonLabel>&nbsp;</IonLabel>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Simulation Speed</IonLabel>
             <IonLabel slot="end">
-              {Format(highScore, {
-                prec: 2,
-              })}
+              {Format(settings.execution["tick"]?.tps || 0)} tps
+            </IonLabel>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Rendering Speed</IonLabel>
+            <IonLabel slot="end">
+              {Format(settings.execution["tick"]?.fps || 0)} fps
             </IonLabel>
           </IonItem>
         </IonCol>

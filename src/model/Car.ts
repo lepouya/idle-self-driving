@@ -413,8 +413,6 @@ class Car {
 
       // Crossing in the wrong direction!
       if (crossAngle > Math.PI / 2) {
-        this.odometer = 0;
-        this.laps = 0;
         return true;
       }
 
@@ -429,8 +427,6 @@ class Car {
 
       // Turned around on the lap line and went the wrong way
       if (crossAngle > Math.PI / 2) {
-        this.odometer = 0;
-        this.laps = 0;
         return true;
       }
     }
@@ -479,7 +475,9 @@ module Car {
   }
 
   export async function resetAll() {
-    new Car("Manual", "#33eeee");
+    if (Settings.singleton.manualControl) {
+      new Car("Manual", "#33eeee");
+    }
     await Promise.all(
       Object.values(registry.get()).map((car) => car.fetchImageData()),
     );
@@ -500,9 +498,10 @@ module Car {
 
     // Replace the manual driver if needed
     if (
-      !cars["Manual"] ||
-      cars["Manual"]?.collided ||
-      (cars["Manual"]?.track?.name ?? "") !== track.name
+      settings.manualControl &&
+      (!cars["Manual"] ||
+        cars["Manual"]?.collided ||
+        (cars["Manual"]?.track?.name ?? "") !== track.name)
     ) {
       new Car("Manual", "#33eeee");
     }
