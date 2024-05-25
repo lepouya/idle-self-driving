@@ -1,13 +1,25 @@
 import Car from "./Car";
+import Network from "./Network";
 import Sensor from "./Sensor";
 
 export class Settings {
   static singleton = new Settings();
   private constructor(..._: any[]) {}
 
+  /// Simulation parameters
+
   ticksPerSecond: number = 100;
   rendersPerSecond: number = 30;
   saveFrequencySecs: number = 60;
+
+  minUpdateSecs = 0.01;
+  maxUpdateSecs = 60;
+  maxTickSecs = 1;
+
+  globalTimeDilation = 1.0;
+  globalPaused = false;
+
+  /// Execution information
 
   lastReset: number = Date.now();
   lastSaved: number = 0;
@@ -15,32 +27,7 @@ export class Settings {
   lastRender: number = 0;
   lastTick?: number;
 
-  minUpdateSecs = 0.01;
-  maxUpdateSecs = 60;
-  maxTickSecs = 1;
-
-  globalTimeDilation = 1.0;
-  globalNumberFormat?: string;
-
   onTickComplete?: (dt: number, source: string) => any;
-
-  currentTrack = "Basic";
-  trackWidth = 800; // px
-  trackHeight = 600; // px
-  trackFriction = 0.1; // %/s
-  carWidth = 20; // px
-  carHeight = 15; // px
-  maxSpeed = 100; // px/s
-  maxAcceleration = 25; // px/s^2
-  maxSteering = Math.PI / 2; // rad/s
-
-  sensorConfig: Sensor.Configuration[] = [
-    { index: 0, angle: 0, range: 100, width: 4 },
-    { index: 1, angle: Math.PI / 6, range: 100, width: 2 },
-    { index: 2, angle: -Math.PI / 6, range: 100, width: 2 },
-    { index: 3, angle: Math.PI / 3, range: 100, width: 2 },
-    { index: 4, angle: -Math.PI / 3, range: 100, width: 2 },
-  ];
 
   execution: Record<
     string,
@@ -52,6 +39,51 @@ export class Settings {
       fps: number;
     }
   > = {};
+
+  /// Track configuration
+
+  trackWidth = 800; // px
+  trackHeight = 600; // px
+  currentTrack = "Basic";
+
+  /// Car configuration
+
+  carWidth = 20; // px
+  carHeight = 15; // px
+  friction = 0.1; // %/s
+  maxSpeed = 100; // px/s
+  maxAcceleration = 25; // px/s^2
+  maxSteering = Math.PI / 2; // rad/s
+
+  /// Sensors configuration
+
+  sensors: Sensor.Configuration[] = [
+    { index: 0, angle: 0, range: 100, width: 4 },
+    { index: 1, angle: Math.PI / 6, range: 100, width: 2 },
+    { index: 2, angle: -Math.PI / 6, range: 100, width: 2 },
+    { index: 3, angle: Math.PI / 3, range: 100, width: 2 },
+    { index: 4, angle: -Math.PI / 3, range: 100, width: 2 },
+  ];
+
+  /// Neural network configuration
+
+  stepStdDev = 0.5;
+  numIterations = 0;
+
+  numSimulations = {
+    globalBest: 4,
+    trackBest: 4,
+    trackRandom: 2,
+  };
+
+  sotaScore: Record<string, number> = {}; // Track name => score
+  sotaNet: Network.Configuration = Network.init(
+    this.sensors.length + 4, // in: sensors + [accel, steer, speed, angle]
+    2, // out: [accel, steer]
+    [], // init with no hidden layers
+  ).config;
+
+  /////////////
 
   static reset(settings?: Partial<Settings>) {
     const ss = new Settings();
@@ -135,12 +167,11 @@ export class Settings {
       const slice = now - dt * 1000;
       const tick = (slice - lastTick!) * tickScale;
 
-      if (source === "tick") {
-        Car.tickAll(tick);
-      }
-
       // Delta: tick
       // Update time: slice
+      if (source === "tick") {
+        Car.tickAll(this.globalPaused ? 0 : tick);
+      }
     }
 
     // Update execution status

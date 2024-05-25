@@ -51,7 +51,7 @@ window.addEventListener(
     DrivingTab.init();
     SettingsTab.init();
     await App.Settings.load();
-    await Promise.all([Track.loadAll(), Car.loadAll(), Sensor.loadAll()]);
+    await Promise.all([Track.loadAll(), Car.resetAll(), Sensor.loadAll()]);
 
     root.render(
       <StrictMode>

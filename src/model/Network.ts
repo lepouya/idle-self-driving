@@ -1,5 +1,5 @@
 class Network {
-  constructor(public readonly config: Network.NetworkConfig) {
+  constructor(public readonly config: Network.Configuration) {
     this.validate();
   }
 
@@ -67,13 +67,12 @@ class Network {
     for (let layer_idx = 0; layer_idx < weights.length; layer_idx++) {
       let layer_out: number[] = [];
       for (let idx_out = 0; idx_out < weights[layer_idx].length; idx_out++) {
-        let sum = 0;
+        // Bias
+        let sum = weights[layer_idx][idx_out][layer_in.length - 1];
         // Weights
         for (let idx_in = 0; idx_in < layer_in.length - 1; idx_in++) {
           sum += layer_in[idx_in] * weights[layer_idx][idx_out][idx_in];
         }
-        // Bias
-        sum += weights[layer_idx][idx_out][layer_in.length - 1];
         // Activation
         layer_out.push(this.activation(sum));
       }
@@ -93,10 +92,21 @@ class Network {
       return value;
     }
   }
+
+  randomStep(stdev: number): Network {
+    return new Network({
+      ...this.config,
+      weights: this.config.weights.map((layer) =>
+        layer.map((neuron) =>
+          neuron.map((weight) => gaussianRandom(weight, stdev)),
+        ),
+      ),
+    });
+  }
 }
 
 module Network {
-  export interface NetworkConfig {
+  export interface Configuration {
     input: number;
     hidden: number[];
     output: number;
@@ -106,3 +116,12 @@ module Network {
 }
 
 export default Network;
+
+// Standard Normal variate using Box-Muller transform.
+export function gaussianRandom(mean = 0, stdev = 1) {
+  const u = 1 - Math.random(); // Converting [0,1) to (0,1]
+  const v = Math.random();
+  const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  // Transform to the desired mean and standard deviation:
+  return z * stdev + mean;
+}

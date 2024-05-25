@@ -157,19 +157,19 @@ abstract class Track {
 }
 
 module Track {
-  const tracksRegistry = genRegistry<Record<string, Track>>({});
+  const registry = genRegistry<Record<string, Track>>({});
 
-  export const useHook = tracksRegistry.useHook;
-  export const signalUpdate = tracksRegistry.signal;
+  export const useHook = registry.useHook;
+  export const signalUpdate = registry.signal;
 
   export function register(track: Track) {
-    tracksRegistry.get()[track.name] = track;
-    tracksRegistry.signal();
+    registry.get()[track.name] = track;
+    registry.signal();
   }
 
   export function unregister(track: Track | string) {
-    delete tracksRegistry.get()[typeof track === "string" ? track : track.name];
-    tracksRegistry.signal();
+    delete registry.get()[typeof track === "string" ? track : track.name];
+    registry.signal();
   }
 
   export async function loadAll() {

@@ -108,7 +108,10 @@ module Sensor {
   export const offTrack = 0x800000;
   export const lapLine = 0x002000;
   export const vehicle = 0x7fdfff;
-  export const radar = [0x20, 0x40, 0x60, 0x80, 0xa0, 0xc0, 0xe0];
+  export const radar = [
+    0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xa0, 0xb0, 0xc0,
+    0xd0, 0xe0,
+  ];
 
   export const color = {
     available: toSvgColor(available),
@@ -129,29 +132,29 @@ module Sensor {
     readonly width: number;
   }
 
-  const sensorsRegistry = genRegistry<Record<number, Sensor>>({});
+  const registry = genRegistry<Record<number, Sensor>>({});
 
-  export const useHook = sensorsRegistry.useHook;
-  export const signalUpdate = sensorsRegistry.signal;
+  export const useHook = registry.useHook;
+  export const signalUpdate = registry.signal;
 
   export function getAll() {
-    return Object.values(sensorsRegistry.get());
+    return Object.values(registry.get());
   }
 
   export function register(sensor: Sensor) {
-    sensorsRegistry.get()[sensor.config.index] = sensor;
-    sensorsRegistry.signal();
+    registry.get()[sensor.config.index] = sensor;
+    registry.signal();
   }
 
   export function unregister(sensor: Sensor | number) {
-    delete sensorsRegistry.get()[
+    delete registry.get()[
       typeof sensor === "number" ? sensor : sensor.config.index
     ];
-    sensorsRegistry.signal();
+    registry.signal();
   }
 
   export async function loadAll() {
-    const sensors = Settings.singleton.sensorConfig.map(
+    const sensors = Settings.singleton.sensors.map(
       (config) => new Sensor(config),
     );
 

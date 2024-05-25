@@ -24,7 +24,7 @@ export default function DrivingTab() {
   const track = tracks[settings.currentTrack];
 
   useEffect(() => {
-    cars.forEach((car) => car.placeOnTrack(track));
+    Car.nextGeneration(track);
   }, [track]);
 
   useEffect(() => {
@@ -34,6 +34,8 @@ export default function DrivingTab() {
       Car.renderAll(context);
     }
   }, [settings.currentTrack, canvasRef.current, settings.lastRender]);
+
+  const highScore = Math.max(...cars.map((car) => car.score.score)) || 0;
 
   return (
     <IonGrid>
@@ -77,9 +79,23 @@ export default function DrivingTab() {
             </IonSelect>
           </IonItem>
           <IonItem>
-            <IonLabel>Best Score</IonLabel>
+            <IonLabel>Best Score on {settings.currentTrack} Track</IonLabel>
             <IonLabel slot="end">
-              {Format(Math.max(...cars.map((car) => car.score.score)) || 0, {
+              {Format(
+                Math.max(
+                  highScore,
+                  settings.sotaScore[settings.currentTrack] || 0,
+                ),
+                {
+                  prec: 2,
+                },
+              )}
+            </IonLabel>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Current Leader Score</IonLabel>
+            <IonLabel slot="end">
+              {Format(highScore, {
                 prec: 2,
               })}
             </IonLabel>

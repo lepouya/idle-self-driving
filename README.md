@@ -20,7 +20,7 @@ Playing with this idea I have for a self-training driving system.
 - ~~Road object and rendering~~
 - ~~Car object and rendering~~
 - ~~Sensor objects and rendering~~
-- Network objects and rendering
+- ~~Network objects and rendering~~
 - Racing and scoring
 - Auto run multiple instances at once
 - Tweaks

@@ -1,6 +1,7 @@
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
 import App from "./App";
+import Network from "./Network";
 import Sensor from "./Sensor";
 import { clamp, Settings } from "./Settings";
 import Track from "./Track";
@@ -12,7 +13,7 @@ class Car {
   readonly height = Settings.singleton.carHeight;
 
   // Position and Motion
-  private track: Track | null = null;
+  public track: Track | null = null;
   public position = { x: 0, y: 0 };
   public angle = 0; // radians. 0 = right, pi/2 = down
   public speed = 0; // px/s
@@ -23,6 +24,7 @@ class Car {
   public odometer = 0;
   public laps = 0;
   private inCrossing = false;
+  private totalTicks = 0;
   public startTime = 0;
   public endTime = 0;
   public collided = false;
@@ -31,12 +33,23 @@ class Car {
   public visualizeSensors = false;
 
   // Network evaluation
+  public net: Network | null = null;
 
   constructor(
     public readonly name: string,
-    public color = "blue",
-    public fudgeFactor = 0, // 0-1
-  ) {}
+    public color = "",
+    public fudgeFactor = 0.5, // 0-1
+  ) {
+    if (!color) {
+      const rgb = [32, 64, 128].map((c) =>
+        clamp(~~(Math.random() * c * 2), 0, 255),
+      );
+      this.color =
+        "#" + rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
+    }
+
+    Car.register(this);
+  }
 
   get mask(): string {
     return [
@@ -71,7 +84,7 @@ class Car {
         height="${this.height}"
         rx="${this.width / 4}"
         ry="${this.height / 4}"
-        fill="${this.collided ? "red" : this.color}"
+        fill="${this.laps >= 3 ? "green" : this.collided ? "red" : this.color}"
       />`,
       // Wheels
       [
@@ -101,7 +114,8 @@ class Car {
   }
 
   async fetchImageData() {
-    this._imageData = await composeImage([this.image], {
+    this._imageData = await composeImage([], {
+      sources: [{ src: this.image, opacity: this.net ? 0.5 : 1 }],
       width: this.width,
       height: this.height,
     });
@@ -138,9 +152,11 @@ class Car {
     this.position.y -= (track.startingDirection.y * this.height) / 2;
 
     // Start on slightly different spots on the starting line
-    const fudge = Math.random() * this.fudgeFactor;
-    this.position.x += fudge * track.startingDirection.y;
-    this.position.y -= fudge * track.startingDirection.x;
+    const fudge = this.net
+      ? Math.random() * track.roadThickness - track.roadThickness / 2
+      : 0;
+    this.position.x += fudge * this.fudgeFactor * track.startingDirection.y;
+    this.position.y -= fudge * this.fudgeFactor * track.startingDirection.x;
 
     // Reset scoring state
     this.odometer = 0;
@@ -150,7 +166,16 @@ class Car {
     this.endTime = 0;
     this.collided = false;
     this.fetchImageData();
-    this.pastTracking = [];
+
+    // Prevent from going backwards
+    const trackingRadius =
+      Math.max(this.width, this.height, this.track.roadThickness) + 1;
+    this.pastTracking = [
+      {
+        x: track.startingPoint.x - track.startingDirection.x * trackingRadius,
+        y: track.startingPoint.y - track.startingDirection.y * trackingRadius,
+      },
+    ];
 
     // Reset collision status
     this.sensorsReady = true;
@@ -164,6 +189,17 @@ class Car {
     this.inCrossing = false;
     this.collided = collided;
     this.fetchImageData();
+
+    // New SOTA!
+    const settings = Settings.singleton;
+    if (
+      this.track &&
+      this.net &&
+      this.score.score > (settings.sotaScore[this.track.name] ?? 0)
+    ) {
+      settings.sotaNet = this.net.config;
+      settings.sotaScore = { [this.track.name]: this.score.score };
+    }
   }
 
   render(context: CanvasRenderingContext2D) {
@@ -196,14 +232,28 @@ class Car {
       this.manualControl();
     }
 
+    if (this.name !== "Manual") {
+      const score = this.score;
+      // Lost cause
+      if (score.score < -10 || (this.totalTicks > 10 && score.score === 0)) {
+        return this.endRun();
+      }
+      // Successful run
+      if (score.laps >= 3) {
+        return this.endRun();
+      }
+    }
+
     const settings = Settings.singleton;
+    this.totalTicks += dt;
 
     // Steering
     this.steering = clamp(this.steering, -1, 1);
-    if (Math.abs(this.steering) >= 0.01 && this.speed >= 0.01) {
+    this.steering = clamp(this.steering, -this.speed, this.speed);
+    if (Math.abs(this.steering) >= 0.01) {
       this.angle += settings.maxSteering * this.steering * dt;
-      this.steering -= settings.trackFriction * Math.sign(this.steering) * dt;
-      this.speed -= settings.trackFriction * this.speed * dt;
+      this.steering -= settings.friction * Math.sign(this.steering) * dt;
+      this.speed -= settings.friction * this.speed * dt;
     }
     if (this.angle > Math.PI) {
       this.angle -= Math.PI * 2;
@@ -216,9 +266,9 @@ class Car {
     if (Math.abs(this.acceleration) >= 0.01) {
       this.speed += settings.maxAcceleration * this.acceleration * dt;
       this.acceleration -=
-        settings.trackFriction * Math.sign(this.acceleration) * dt;
+        settings.friction * Math.sign(this.acceleration) * dt;
     } else {
-      this.speed -= settings.trackFriction * this.speed * dt;
+      this.speed -= settings.friction * this.speed * dt;
     }
     this.speed = clamp(this.speed, 0, settings.maxSpeed);
 
@@ -313,6 +363,17 @@ class Car {
         }
 
         // Eval net using sensors
+        if (this.net) {
+          const outputs = this.net.eval([
+            ...sensorReadings,
+            this.acceleration,
+            this.steering,
+            this.speed / Settings.singleton.maxSpeed,
+            this.angle / Math.PI,
+          ]);
+          this.acceleration = outputs[0];
+          this.steering = outputs[1];
+        }
       })
       .finally(() => {
         this.sensorsReady = true;
@@ -342,6 +403,8 @@ class Car {
 
       // Crossing in the wrong direction!
       if (Math.abs(this.angle - this.track!.startingAngle) > Math.PI / 2) {
+        this.odometer = 0;
+        this.laps = 0;
         return true;
       }
 
@@ -353,6 +416,13 @@ class Car {
       }
     } else if (hist[Sensor.vehicle + Sensor.lapLine] < 1 && this.inCrossing) {
       this.inCrossing = false;
+
+      // Turned around on the lap line and went the wrong way
+      if (Math.abs(this.angle - this.track!.startingAngle) > Math.PI / 2) {
+        this.odometer = 0;
+        this.laps = 0;
+        return true;
+      }
     }
 
     // Went outside the track
@@ -383,34 +453,88 @@ class Car {
 }
 
 module Car {
-  const carsRegistry = genRegistry<Record<string, Car>>({});
+  const registry = genRegistry<Record<string, Car>>({});
 
-  export const useHook = carsRegistry.useHook;
-  export const signalUpdate = carsRegistry.signal;
+  export const useHook = registry.useHook;
+  export const signalUpdate = registry.signal;
 
   export function register(car: Car) {
-    carsRegistry.get()[car.name] = car;
-    carsRegistry.signal();
+    registry.get()[car.name] = car;
+    registry.signal();
   }
 
   export function unregister(car: Car | string) {
-    delete carsRegistry.get()[typeof car === "string" ? car : car.name];
-    carsRegistry.signal();
+    delete registry.get()[typeof car === "string" ? car : car.name];
+    registry.signal();
   }
 
-  export async function loadAll() {
-    const cars = [new Car("Manual")];
-    cars.forEach((cars) => register(cars));
-    await Promise.all(cars.map((cars) => cars.fetchImageData()));
+  export async function resetAll() {
+    new Car("Manual", "#33eeee");
+    await Promise.all(
+      Object.values(registry.get()).map((car) => car.fetchImageData()),
+    );
     signalUpdate();
   }
 
   export function renderAll(context: CanvasRenderingContext2D) {
-    Object.values(carsRegistry.get()).forEach((car) => car.render(context));
+    Object.values(registry.get()).forEach((car) => car.render(context));
   }
 
   export function tickAll(dt: number) {
-    Object.values(carsRegistry.get()).forEach((car) => car.tick(dt));
+    Object.values(registry.get()).forEach((car) => car.tick(dt));
+  }
+
+  export async function nextGeneration(track: Track) {
+    const settings = Settings.singleton;
+    const cars = registry.get();
+
+    // Replace the manual driver if needed
+    if (
+      !cars["Manual"] ||
+      cars["Manual"]?.collided ||
+      (cars["Manual"]?.track?.name ?? "") !== track.name
+    ) {
+      new Car("Manual", "#33eeee");
+    }
+
+    // End all runs
+    const aiCars = Object.values(cars).filter(
+      (car) => car.name !== "Manual" && car.net,
+    );
+    aiCars.forEach((car) => car.endRun());
+    aiCars.sort((a, b) => b.score.score - a.score.score);
+
+    // Get the best nets to use for next generation
+    const sotaNet = new Network(settings.sotaNet);
+    const trackBest = aiCars[0]?.net ?? sotaNet;
+
+    // Create new cars with mutated nets
+    for (let i = 0; i < settings.numSimulations.globalBest; i++) {
+      const car = new Car(`AI.globalBest.${i}`);
+      car.net = sotaNet.randomStep(i === 0 ? 0 : settings.stepStdDev);
+    }
+    for (let i = 0; i < settings.numSimulations.trackBest; i++) {
+      const car = new Car(`AI.trackBest.${i}`);
+      car.net = trackBest.randomStep(settings.stepStdDev);
+    }
+    for (let i = 0; i < settings.numSimulations.trackRandom; i++) {
+      const trackRandom =
+        aiCars[Math.floor(Math.random() * aiCars.length)]?.net ?? trackBest;
+      const car = new Car(`AI.trackRandom.${i}`);
+      car.net = trackRandom.randomStep(settings.stepStdDev);
+    }
+
+    // Place all the cars on the track and signal update
+    settings.numIterations++;
+    Object.values(cars).forEach((car) => {
+      if (!car.track) {
+        car.placeOnTrack(track);
+      }
+    });
+    await Promise.all(Object.values(cars).map((car) => car.fetchImageData()));
+    App.Settings.save();
+    App.Settings.signalUpdate();
+    Car.signalUpdate();
   }
 }
 
