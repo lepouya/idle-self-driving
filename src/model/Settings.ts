@@ -61,6 +61,7 @@ export class Settings {
 
   /// Sensors configuration
 
+  renderSensors = false;
   sensorAccuracy = 1; // 0-1
 
   sensors: Sensor.Configuration[] = [

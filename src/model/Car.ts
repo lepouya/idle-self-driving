@@ -214,13 +214,13 @@ class Car {
     context.save();
 
     context.resetTransform();
-    context.translate(this.position.x, this.position.y);
+    context.translate(~~this.position.x, ~~this.position.y);
     context.rotate(this.angle);
 
     if (this.visualizeSensors) {
       Sensor.getAll().forEach((sensor) => sensor.render(context));
     }
-    context.drawImage(this.canvas, -this.width / 2, -this.height / 2);
+    context.drawImage(this.canvas, ~~(-this.width / 2), ~~(-this.height / 2));
 
     context.restore();
   }
@@ -238,17 +238,14 @@ class Car {
       const score = this.score;
       // Lost cause
       if (score.score < -10 || (this.totalTicks > 10 && score.score === 0)) {
+        console.log(this.name, "doesn't seem to be going anywhere");
         return this.endRun();
       }
       // Successful run
       if (score.laps >= 3) {
+        console.log(this.name, "has beaten the track !!!");
         return this.endRun();
       }
-    }
-
-    // Trying to combat sensor lag
-    if (!this.sensorsReady && Date.now() - this.lastSensorReading > 100) {
-      return;
     }
 
     const settings = Settings.singleton;
@@ -289,6 +286,7 @@ class Car {
       this.position.y <= 0 ||
       this.position.y >= this.track.height
     ) {
+      console.log(this.name, "went out of bounds");
       return this.endRun();
     }
 
@@ -312,6 +310,7 @@ class Car {
       dists.slice(1).some((d) => d < trackingRadius)
     ) {
       // Went back on the track
+      console.log(this.name, "went back on the track");
       return this.endRun();
     }
 
@@ -319,14 +318,14 @@ class Car {
     this.checkSensors();
   }
 
-  async getMaskWithSensors() {
+  async renderSensors() {
     const scale = Settings.singleton.sensorAccuracy;
     return composeImage([], {
-      width: this.track!.width * scale,
-      height: this.track!.height * scale,
+      width: Settings.singleton.trackWidth * scale,
+      height: Settings.singleton.trackHeight * scale,
       sources: [
         {
-          src: this.track!.mask,
+          src: this.track?.mask || "transparent",
           stretch: scale,
           smoothing: false,
         },
@@ -357,7 +356,12 @@ class Car {
   }
 
   checkSensors() {
-    if (!this.track || !this.sensorsReady || this.collided) {
+    if (!this.track || this.collided) {
+      return;
+    }
+
+    // Don't read sensors too often if a previous thread is working
+    if (!this.sensorsReady && Date.now() - this.lastSensorReading < 100) {
       return;
     }
 
@@ -414,27 +418,33 @@ class Car {
           this.steering = outputs[1];
         }
       })
+      .catch((err) => {
+        console.error("Error reading sensors", this.name, err);
+      })
       .finally(() => {
         this.sensorsReady = true;
         this.lastSensorReading = Date.now();
       });
   }
 
-  checkCollision(composedMask: ComposedImage): boolean {
-    const carRadius = Math.max(this.width / 2, this.height / 2) + 1;
-    const hist = composedMask.getColorBuckets(
-      [
-        Sensor.vehicle + Sensor.available,
-        Sensor.vehicle + Sensor.lapLine,
-        Sensor.vehicle + Sensor.offTrack,
-      ],
-      0x0f,
-      {
-        x: this.position.x - carRadius,
-        y: this.position.y - carRadius,
-        w: carRadius * 2,
-        h: carRadius * 2,
-      },
+  checkCollision(mask: ComposedImage): boolean {
+    // Check if the car is crossing any of the road features
+    const radius = ~~Math.max(this.width / 2, this.height / 2) + 1;
+    const buffer = mask.getPixels(
+      this.position.x - radius,
+      this.position.y - radius,
+      radius * 2,
+      radius * 2,
+    ).buffer;
+    const lapping = buffer.some(
+      (v) =>
+        (((v & 0xff0000) >> 16) | ((v & 0xff) << 16) | (v & 0xff00)) ===
+        (Sensor.vehicle | Sensor.lapLine),
+    );
+    const offTrack = buffer.some(
+      (v) =>
+        (((v & 0xff0000) >> 16) | ((v & 0xff) << 16) | (v & 0xff00)) ===
+        (Sensor.vehicle | Sensor.offTrack),
     );
 
     // Crossing angle
@@ -448,11 +458,12 @@ class Car {
     }
 
     // Crossing the start/finish line
-    if (hist[Sensor.vehicle + Sensor.lapLine] > 0 && !this.inCrossing) {
+    if (lapping && !this.inCrossing) {
       this.inCrossing = true;
 
       // Crossing in the wrong direction!
       if (crossAngle > Math.PI / 2) {
+        console.log(this.name, "crossed the lap line the wrong way");
         return true;
       }
 
@@ -460,19 +471,25 @@ class Car {
       if (!this.startTime) {
         this.startTime = Date.now();
       } else {
+        if (this.odometer < this.width + this.height) {
+          console.log(this.name, "didn't complete a full lap");
+          return true;
+        }
         this.laps++;
       }
-    } else if (hist[Sensor.vehicle + Sensor.lapLine] < 1 && this.inCrossing) {
+    } else if (!lapping && this.inCrossing) {
       this.inCrossing = false;
 
       // Turned around on the lap line and went the wrong way
       if (crossAngle > Math.PI / 2) {
+        console.log(this.name, "turned around on the lap line");
         return true;
       }
     }
 
     // Went outside the track
-    if (hist[Sensor.vehicle + Sensor.offTrack] > 1) {
+    if (offTrack) {
+      console.log(this.name, "went off track");
       return true;
     }
 

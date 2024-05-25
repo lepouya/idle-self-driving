@@ -31,13 +31,16 @@ export default function DrivingTab() {
   useEffect(() => {
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d", { alpha: false })!;
-      track.render(context);
-      Car.renderAll(context);
-      // cars[0]?.getMaskWithSensors().then((mask) => {
-      //   context.clearRect(0, 0, settings.trackWidth, settings.trackHeight);
-      //   context.resetTransform();
-      //   context.drawImage(mask.canvas!, 0, 0);
-      // });
+      if (settings.renderSensors) {
+        cars[0]?.renderSensors().then((mask) => {
+          context.clearRect(0, 0, settings.trackWidth, settings.trackHeight);
+          context.resetTransform();
+          context.drawImage(mask.canvas!, 0, 0);
+        });
+      } else {
+        track.render(context);
+        Car.renderAll(context);
+      }
     }
   }, [settings.currentTrack, canvasRef.current, settings.lastRender]);
 

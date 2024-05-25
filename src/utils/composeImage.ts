@@ -51,140 +51,24 @@ export class ComposedImage {
     );
   }
 
-  getColorHistogram(
-    area?: [number, number, number, number] | (Position & Size),
-    mask = 0xff,
-  ): { [color: string]: number } {
-    let data: ImageData | undefined = undefined;
-
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
-    const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
-    const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
-    const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
-
-    try {
-      const context = this.canvas.getContext("2d", { alpha: false })!;
-      data = context.getImageData(sx, sy, sw, sh);
-    } catch {
-      data = undefined;
-    }
-
-    if (!data) {
+  getPixels(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): { buffer: Uint32Array; width: number; height: number } {
+    const cw = this.canvas.width;
+    const ch = this.canvas.height;
+    const sx = clampInt(x, 0, cw - 1);
+    const sy = clampInt(y, 0, ch - 1);
+    const sw = clampInt(w, 1, cw - sx);
+    const sh = clampInt(h, 1, ch - sy);
+    const img = this.canvas?.getContext("2d")?.getImageData(sx, sy, sw, sh);
+    if (!img) {
       throw new ImageRenderingError();
     }
-
-    const hist: { [color: string]: number } = {};
-    const len = data.data.length;
-    for (let i = 0; i < len; i += 4) {
-      const r = data.data[i] & mask;
-      const g = data.data[i + 1] & mask;
-      const b = data.data[i + 2] & mask;
-      const a = data.data[i + 3] & mask;
-      const color = hex[r] + hex[g] + hex[b];
-
-      if (a > 0) {
-        hist[color] = (hist[color] || 0) + 1;
-      }
-    }
-
-    return hist;
-  }
-
-  getColorBuckets(
-    rgbBuckets: (string | number)[],
-    tolerance = 0,
-    area?: [number, number, number, number] | (Position & Size),
-  ): { [color: string]: number } {
-    let data: ImageData | undefined = undefined;
-
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
-    const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
-    const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
-    const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
-
-    try {
-      const context = this.canvas.getContext("2d", { alpha: false })!;
-      data = context.getImageData(sx, sy, sw, sh);
-    } catch {
-      data = undefined;
-    }
-
-    if (!data) {
-      throw new ImageRenderingError();
-    }
-
-    const colors = rgbBuckets.map((color) => {
-      const code = typeof color === "string" ? parseInt(color, 16) : ~~color;
-      const r = (code >> 16) & 0xff;
-      const g = (code >> 8) & 0xff;
-      const b = code & 0xff;
-      return { r, g, b, bucket: color };
-    });
-    const hist: { [color: string]: number } = Object.fromEntries(
-      rgbBuckets.map((color) => [color, 0]),
-    );
-
-    const len = data.data.length;
-    for (let i = 0; i < len; i += 4) {
-      const r = data.data[i];
-      const g = data.data[i + 1];
-      const b = data.data[i + 2];
-      const a = data.data[i + 3];
-
-      if (a > 0) {
-        for (const color of colors) {
-          if (
-            Math.abs(r - color.r) +
-              Math.abs(g - color.g) +
-              Math.abs(b - color.b) <=
-            tolerance
-          ) {
-            hist[color.bucket]++;
-            break;
-          }
-        }
-      }
-    }
-
-    return hist;
-  }
-
-  getDominantColor(): { r: number; g: number; b: number } {
-    let data: ImageData | undefined = undefined;
-    try {
-      const context = this.canvas.getContext("2d")!;
-      data = context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-    } catch {
-      data = undefined;
-    }
-
-    if (!data) {
-      throw new ImageRenderingError();
-    }
-
-    let denom = 0;
-    const rgb = { r: 0, g: 0, b: 0 };
-    const len = data.data.length;
-    for (let i = 0; i < len; i += 4) {
-      const r = data.data[i];
-      const g = data.data[i + 1];
-      const b = data.data[i + 2];
-      const a = data.data[i + 3];
-
-      denom += a;
-      rgb.r += r * a;
-      rgb.g += g * a;
-      rgb.b += b * a;
-    }
-
-    rgb.r = ~~(rgb.r / denom);
-    rgb.g = ~~(rgb.g / denom);
-    rgb.b = ~~(rgb.b / denom);
-    return rgb;
+    const data = new Uint32Array(img.data.buffer);
+    return { buffer: data, width: sw, height: sh };
   }
 }
 
@@ -210,33 +94,33 @@ export default async function composeImage(
 
   const context = canvas.getContext("2d")!;
 
-  for (const [img, props] of imgs) {
+  for (let [img, props] of imgs) {
     context.save();
 
     // Rect in source image
-    const sx = getNum(props.crop, 0, "x") || 0;
-    const sy = getNum(props.crop, 1, "y") || 0;
-    const sw = getNum(props.crop, 2, "w") || img.width;
-    const sh = getNum(props.crop, 3, "h") || img.height;
+    let sx = getNum(props.crop, 0, "x") || 0;
+    let sy = getNum(props.crop, 1, "y") || 0;
+    let sw = getNum(props.crop, 2, "w") || img.width;
+    let sh = getNum(props.crop, 3, "h") || img.height;
 
     // Rect in target image
-    const dx = getNum(props.position, 0, "x") || 0;
-    const dy = getNum(props.position, 1, "y") || 0;
-    const dw = (getNum(props.stretch, 0, "sx") || 1) * sw;
-    const dh = (getNum(props.stretch, 1, "sy") || 1) * sh;
+    let dx = getNum(props.position, 0, "x") || 0;
+    let dy = getNum(props.position, 1, "y") || 0;
+    let dw = (getNum(props.stretch, 0, "sx") || 1) * sw;
+    let dh = (getNum(props.stretch, 1, "sy") || 1) * sh;
 
     // Rotation center and degrees
-    const r = (getNum(props.rotate, 2, "a") || 0) * (Math.PI / 180);
-    const rc = typeof props.rotate === "number" ? undefined : props.rotate;
-    const cx = (getNum(rc, 0, "x") ?? 0.5) * dw + dx;
-    const cy = (getNum(rc, 1, "y") ?? 0.5) * dh + dy;
+    let r = (getNum(props.rotate, 2, "a") || 0) * (Math.PI / 180);
+    let rc = typeof props.rotate === "number" ? undefined : props.rotate;
+    let cx = (getNum(rc, 0, "x") ?? 0.5) * dw + dx;
+    let cy = (getNum(rc, 1, "y") ?? 0.5) * dh + dy;
 
     // Scaling center and factors
-    const kw = getNum(props.scale, 2, "sx") ?? 1;
-    const kh = getNum(props.scale, 3, "sy") ?? 1;
-    const kc = typeof props.scale === "number" ? undefined : props.scale;
-    const kx = (getNum(kc, 0, "x") ?? 0.5) * dw + dx;
-    const ky = (getNum(kc, 1, "y") ?? 0.5) * dh + dy;
+    let kw = getNum(props.scale, 2, "sx") ?? 1;
+    let kh = getNum(props.scale, 3, "sy") ?? 1;
+    let kc = typeof props.scale === "number" ? undefined : props.scale;
+    let kx = (getNum(kc, 0, "x") ?? 0.5) * dw + dx;
+    let ky = (getNum(kc, 1, "y") ?? 0.5) * dh + dy;
 
     // Composition style and alpha
     context.globalAlpha = props.opacity ?? 1;
@@ -269,6 +153,18 @@ export default async function composeImage(
       context.translate(kx, ky);
       context.scale(kw, kh);
       context.translate(-kx, -ky);
+    }
+
+    // Disable subpixel rendering (AA) when not smoothing
+    if (!context.imageSmoothingEnabled) {
+      sx = ~~sx;
+      sy = ~~sy;
+      sw = ~~sw;
+      sh = ~~sh;
+      dx = ~~dx;
+      dy = ~~dy;
+      dw = ~~dw;
+      dh = ~~dh;
     }
 
     // The stretching factors
@@ -350,10 +246,6 @@ const defaultOptions: ImageOptions = {
   quality: 0.92,
 };
 
-const hex = Array.from(Array(0xff).keys()).map((n) =>
-  n.toString(16).padStart(2, "0"),
-);
-
 const transparentGif =
   "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
@@ -411,4 +303,16 @@ function getNum(
   }
 
   return ret;
+}
+
+function clampInt(n = 0, min = 0, max = 1): number {
+  if (isNaN(n)) {
+    return ~~min;
+  } else if (n < min) {
+    return ~~min;
+  } else if (n > max) {
+    return ~~max;
+  } else {
+    return ~~n;
+  }
 }

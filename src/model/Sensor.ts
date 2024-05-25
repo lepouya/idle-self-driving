@@ -75,34 +75,7 @@ class Sensor {
       return;
     }
 
-    context.drawImage(this.canvas, -this.radius, -this.radius);
-  }
-
-  scan(
-    composedMask: ComposedImage,
-    position: { x: number; y: number },
-  ): [number, number] {
-    const scale = Settings.singleton.sensorAccuracy;
-    const hist = composedMask.getColorBuckets(
-      [
-        this.maskColor + Sensor.available,
-        this.maskColor + Sensor.lapLine,
-        this.maskColor + Sensor.offTrack,
-      ],
-      0x01,
-      {
-        x: (position.x - this.radius) * scale,
-        y: (position.y - this.radius) * scale,
-        w: this.radius * 2 * scale,
-        h: this.radius * 2 * scale,
-      },
-    );
-
-    const on =
-      hist[this.maskColor + Sensor.available] +
-      hist[this.maskColor + Sensor.lapLine];
-    const off = hist[this.maskColor + Sensor.offTrack];
-    return [on, on + off];
+    context.drawImage(this.canvas, ~~-this.radius, ~~-this.radius);
   }
 
   static readAll(
@@ -115,19 +88,13 @@ class Sensor {
     const readings = sensors.map(() => 0);
 
     // Get the relevant portion of the mask as a buffer
-    const radius = Math.max(...sensors.map((sensor) => sensor.radius));
-    const w = mask.canvas.width;
-    const h = mask.canvas.height;
-    const sx = clamp(cx - radius, 0, w - 1);
-    const sy = clamp(cy - radius, 0, h - 1);
-    const sw = clamp(radius * 2, 1, w - sx);
-    const sh = clamp(radius * 2, 1, h - sy);
-    const data = mask.canvas
-      ?.getContext("2d", { alpha: false })
-      ?.getImageData(sx, sy, sw, sh)?.data;
-    if (!data) {
-      return readings;
-    }
+    const radius = ~~Math.max(...sensors.map((sensor) => sensor.radius));
+    const { buffer, width, height } = mask.getPixels(
+      cx - radius,
+      cy - radius,
+      radius * 2,
+      radius * 2,
+    );
 
     for (let i = 0; i < sensors.length; i++) {
       const sensor = sensors[i];
@@ -136,14 +103,12 @@ class Sensor {
 
       let dist = 0;
       for (let r = 0; r < sensor.radius; r++) {
-        const row = clamp(Math.round(radius + r * dy), 0, sh - 1);
-        const col = clamp(Math.round(radius + r * dx), 0, sw - 1);
-        const offset = 4 * (row * sw + col);
-        const v =
-          ((data[offset] & 0xff) << 16) |
-          ((data[offset + 1] & 0xff) << 8) |
-          (data[offset + 2] & 0xff);
-        if (v & Sensor.offTrack) {
+        const row = clamp(~~(radius + r * dy), 0, height - 1);
+        const col = clamp(~~(radius + r * dx), 0, width - 1);
+        const v = buffer[row * width + col];
+        // HTML colors are RGB, but canvas data is ABGR
+        const rv = ((v & 0xff0000) >> 16) | ((v & 0xff) << 16) | (v & 0xff00);
+        if (rv & Sensor.offTrack) {
           break;
         } else {
           dist = r;
@@ -160,8 +125,8 @@ class Sensor {
 module Sensor {
   export const available = 0x000000;
   export const offTrack = 0x800000;
-  export const lapLine = 0x002000;
-  export const vehicle = 0x7fdfff;
+  export const lapLine = 0x008000;
+  export const vehicle = 0x7f7fff;
   export const radar = [
     0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xa0, 0xb0, 0xc0,
     0xd0, 0xe0,
