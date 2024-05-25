@@ -30,6 +30,7 @@ class Car {
   public collided = false;
   private pastTracking: { x: number; y: number }[] = [];
   private sensorsReady = true;
+  private lastSensorReading = 0;
   public visualizeSensors = false;
 
   // Network evaluation
@@ -48,7 +49,9 @@ class Car {
         "#" + rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
     }
 
-    Car.register(this);
+    if (name) {
+      Car.register(this);
+    }
   }
 
   get mask(): string {
@@ -115,7 +118,7 @@ class Car {
 
   async fetchImageData() {
     this._imageData = await composeImage([], {
-      sources: [{ src: this.image, opacity: this.net ? 0.5 : 1 }],
+      sources: [{ src: this.image, opacity: this.net ? 0.666 : 1 }],
       width: this.width,
       height: this.height,
     });
@@ -179,6 +182,7 @@ class Car {
 
     // Reset collision status
     this.sensorsReady = true;
+    this.lastSensorReading = Date.now();
   }
 
   endRun(collided = true) {
@@ -230,9 +234,7 @@ class Car {
     // Manual controls
     if (this.name === "Manual") {
       this.manualControl();
-    }
-
-    if (this.name !== "Manual") {
+    } else {
       const score = this.score;
       // Lost cause
       if (score.score < -10 || (this.totalTicks > 10 && score.score === 0)) {
@@ -242,6 +244,11 @@ class Car {
       if (score.laps >= 3) {
         return this.endRun();
       }
+    }
+
+    // Trying to combat sensor lag
+    if (!this.sensorsReady && Date.now() - this.lastSensorReading > 100) {
+      return;
     }
 
     const settings = Settings.singleton;
@@ -312,55 +319,87 @@ class Car {
     this.checkSensors();
   }
 
+  async getMaskWithSensors() {
+    const scale = Settings.singleton.sensorAccuracy;
+    return composeImage([], {
+      width: this.track!.width * scale,
+      height: this.track!.height * scale,
+      sources: [
+        {
+          src: this.track!.mask,
+          stretch: scale,
+          smoothing: false,
+        },
+        {
+          src: this.mask,
+          position: {
+            x: (this.position.x - this.width / 2) * scale,
+            y: (this.position.y - this.height / 2) * scale,
+          },
+          stretch: scale,
+          rotate: this.angle * (180 / Math.PI),
+          composition: "lighter",
+          smoothing: false,
+        },
+        ...Sensor.getAll().map((sensor) => ({
+          src: sensor.mask,
+          position: {
+            x: (this.position.x - sensor.radius) * scale,
+            y: (this.position.y - sensor.radius) * scale,
+          },
+          stretch: scale,
+          rotate: this.angle * (180 / Math.PI),
+          composition: "lighter" as const,
+          smoothing: false,
+        })),
+      ],
+    });
+  }
+
   checkSensors() {
     if (!this.track || !this.sensorsReady || this.collided) {
       return;
     }
 
     this.sensorsReady = false;
+    const scale = Settings.singleton.sensorAccuracy;
     const sensors = Sensor.getAll();
 
     composeImage([], {
-      width: this.track.width,
-      height: this.track.height,
+      width: this.track!.width * scale,
+      height: this.track!.height * scale,
       sources: [
         {
-          src: this.track.mask,
+          src: this.track!.mask,
+          stretch: scale,
           smoothing: false,
         },
         {
           src: this.mask,
           position: {
-            x: this.position.x - this.width / 2,
-            y: this.position.y - this.height / 2,
+            x: (this.position.x - this.width / 2) * scale,
+            y: (this.position.y - this.height / 2) * scale,
           },
+          stretch: scale,
           rotate: this.angle * (180 / Math.PI),
           composition: "lighter",
           smoothing: false,
         },
-        ...sensors.map((sensor) => ({
-          src: sensor.mask,
-          position: {
-            x: this.position.x - sensor.radius,
-            y: this.position.y - sensor.radius,
-          },
-          rotate: this.angle * (180 / Math.PI),
-          composition: "lighter" as const,
-          smoothing: false,
-        })),
       ],
     })
       .then((image) => {
-        return Promise.all([
-          this.checkCollision(image),
-          ...sensors.map((sensor) => sensor.read(image, this.position)),
-        ]);
-      })
-      .then((readings) => {
-        const [collision, ...sensorReadings] = readings;
+        const collision = this.checkCollision(image);
         if (collision) {
           return this.endRun();
         }
+
+        const sensorReadings = Sensor.readAll(
+          sensors,
+          image,
+          this.position.x,
+          this.position.y,
+          this.angle,
+        );
 
         // Eval net using sensors
         if (this.net) {
@@ -377,12 +416,13 @@ class Car {
       })
       .finally(() => {
         this.sensorsReady = true;
+        this.lastSensorReading = Date.now();
       });
   }
 
-  async checkCollision(composedMask: ComposedImage): Promise<boolean> {
+  checkCollision(composedMask: ComposedImage): boolean {
     const carRadius = Math.max(this.width / 2, this.height / 2) + 1;
-    const hist = await composedMask.getColorBuckets(
+    const hist = composedMask.getColorBuckets(
       [
         Sensor.vehicle + Sensor.available,
         Sensor.vehicle + Sensor.lapLine,
@@ -492,7 +532,7 @@ module Car {
     Object.values(registry.get()).forEach((car) => car.tick(dt));
   }
 
-  export async function nextGeneration(track: Track) {
+  export async function nextGeneration(track: Track, force = false) {
     const settings = Settings.singleton;
     const cars = registry.get();
 
@@ -506,10 +546,15 @@ module Car {
       new Car("Manual", "#33eeee");
     }
 
-    // End all runs
+    // Check if the run has ended
     const aiCars = Object.values(cars).filter(
       (car) => car.name !== "Manual" && car.net,
     );
+    if (!force && aiCars.some((car) => !car.collided && car.track === track)) {
+      return;
+    }
+
+    // End all runs
     aiCars.forEach((car) => car.endRun());
     aiCars.sort((a, b) => b.score.score - a.score.score);
 

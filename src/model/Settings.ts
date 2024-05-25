@@ -13,8 +13,8 @@ export class Settings {
   saveFrequencySecs: number = 60;
 
   minUpdateSecs = 0.01;
-  maxUpdateSecs = 60;
-  maxTickSecs = 1;
+  maxUpdateSecs = 0.25;
+  maxTickSecs = 0.1;
 
   globalTimeDilation = 1.0;
   globalPaused = false;
@@ -60,6 +60,8 @@ export class Settings {
   manualControl = false;
 
   /// Sensors configuration
+
+  sensorAccuracy = 1; // 0-1
 
   sensors: Sensor.Configuration[] = [
     { index: 0, angle: 0, range: 100, width: 4 },

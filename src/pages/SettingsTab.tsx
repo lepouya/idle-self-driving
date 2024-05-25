@@ -22,7 +22,7 @@ import { decode, encode } from "../utils/encoding";
 import Format from "../utils/format";
 
 export default function SettingsTab() {
-  const debug = window.location.search.toLowerCase().includes("debug");
+  const debug = isDebug();
 
   return (
     <IonGrid>
@@ -47,7 +47,7 @@ SettingsTab.init = () => {
 function AppDataPanel() {
   const settings = App.useSettings();
   const [textContents, setTextContents] = useState("");
-  const debug = window.location.search.toLowerCase().includes("debug");
+  const debug = true; // Useful for now
 
   return (
     <IonCard>
@@ -93,7 +93,6 @@ function AppDataPanel() {
           <IonCol size="6">
             <IonButton onClick={() => App.Settings.save(debug)} expand="block">
               Save
-              {debug && " [debug]"}
             </IonButton>
           </IonCol>
           <IonCol size="6">
@@ -104,7 +103,6 @@ function AppDataPanel() {
           <IonCol size="6">
             <IonButton onClick={saveFile} expand="block">
               Save to File
-              {debug && " [debug]"}
             </IonButton>
           </IonCol>
           <IonCol size="6">
@@ -124,7 +122,6 @@ function AppDataPanel() {
               expand="block"
             >
               Export Text
-              {debug && " [debug]"}
             </IonButton>
           </IonCol>
           <IonCol size="12">
@@ -133,6 +130,7 @@ function AppDataPanel() {
               labelPlacement="floating"
               fill="outline"
               rows={5}
+              autoGrow={true}
               value={textContents}
               onIonInput={(e) => setTextContents(e.detail.value ?? "")}
             ></IonTextarea>
@@ -414,4 +412,8 @@ function reload() {
   const history = createBrowserHistory();
   history.push("/");
   window.location.reload();
+}
+
+function isDebug() {
+  return window.location.search.toLowerCase().includes("debug");
 }

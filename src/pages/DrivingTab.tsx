@@ -25,7 +25,7 @@ export default function DrivingTab() {
   const track = tracks[settings.currentTrack];
 
   useEffect(() => {
-    Car.nextGeneration(track);
+    Car.nextGeneration(track, false);
   }, [track]);
 
   useEffect(() => {
@@ -33,6 +33,11 @@ export default function DrivingTab() {
       const context = canvasRef.current.getContext("2d", { alpha: false })!;
       track.render(context);
       Car.renderAll(context);
+      // cars[0]?.getMaskWithSensors().then((mask) => {
+      //   context.clearRect(0, 0, settings.trackWidth, settings.trackHeight);
+      //   context.resetTransform();
+      //   context.drawImage(mask.canvas!, 0, 0);
+      // });
     }
   }, [settings.currentTrack, canvasRef.current, settings.lastRender]);
 
@@ -51,11 +56,11 @@ export default function DrivingTab() {
         </IonCol>
         <IonCol size="4">
           <IonItem>
-            <IonLabel>Iteration {settings.numIterations + 1}</IonLabel>
+            <IonLabel>Iteration {settings.numIterations}</IonLabel>
             <IonButton
               slot="end"
               expand="block"
-              onClick={() => Car.nextGeneration(track)}
+              onClick={() => Car.nextGeneration(track, true)}
             >
               Next Generation
             </IonButton>

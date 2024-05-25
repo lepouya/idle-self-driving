@@ -54,151 +54,137 @@ export class ComposedImage {
   getColorHistogram(
     area?: [number, number, number, number] | (Position & Size),
     mask = 0xff,
-  ): Promise<{ [color: string]: number }> {
-    return new Promise((resolve, reject) => {
-      let data: ImageData | undefined = undefined;
+  ): { [color: string]: number } {
+    let data: ImageData | undefined = undefined;
 
-      const w = this.canvas.width;
-      const h = this.canvas.height;
-      const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
-      const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
-      const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
-      const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
+    const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
+    const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
+    const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
 
-      try {
-        const context = this.canvas.getContext("2d", { alpha: false })!;
-        data = context.getImageData(sx, sy, sw, sh);
-      } catch {
-        data = undefined;
+    try {
+      const context = this.canvas.getContext("2d", { alpha: false })!;
+      data = context.getImageData(sx, sy, sw, sh);
+    } catch {
+      data = undefined;
+    }
+
+    if (!data) {
+      throw new ImageRenderingError();
+    }
+
+    const hist: { [color: string]: number } = {};
+    const len = data.data.length;
+    for (let i = 0; i < len; i += 4) {
+      const r = data.data[i] & mask;
+      const g = data.data[i + 1] & mask;
+      const b = data.data[i + 2] & mask;
+      const a = data.data[i + 3] & mask;
+      const color = hex[r] + hex[g] + hex[b];
+
+      if (a > 0) {
+        hist[color] = (hist[color] || 0) + 1;
       }
+    }
 
-      if (!data) {
-        reject(new ImageRenderingError());
-        return;
-      }
-
-      const hist: { [color: string]: number } = {};
-      const len = data.data.length;
-      for (let i = 0; i < len; i += 4) {
-        const r = data.data[i] & mask;
-        const g = data.data[i + 1] & mask;
-        const b = data.data[i + 2] & mask;
-        const a = data.data[i + 3] & mask;
-        const color = hex[r] + hex[g] + hex[b];
-
-        if (a > 0) {
-          hist[color] = (hist[color] || 0) + 1;
-        }
-      }
-
-      resolve(hist);
-    });
+    return hist;
   }
 
   getColorBuckets(
     rgbBuckets: (string | number)[],
     tolerance = 0,
     area?: [number, number, number, number] | (Position & Size),
-  ): Promise<{ [color: string]: number }> {
-    return new Promise((resolve, reject) => {
-      let data: ImageData | undefined = undefined;
+  ): { [color: string]: number } {
+    let data: ImageData | undefined = undefined;
 
-      const w = this.canvas.width;
-      const h = this.canvas.height;
-      const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
-      const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
-      const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
-      const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const sx = getNum(area, 0, "x", { min: 0, max: w - 1, def: 0 })!;
+    const sy = getNum(area, 1, "y", { min: 0, max: h - 1, def: 0 })!;
+    const sw = getNum(area, 2, "w", { min: 1, max: w - sx, def: w })!;
+    const sh = getNum(area, 3, "h", { min: 1, max: h - sy, def: h })!;
 
-      try {
-        const context = this.canvas.getContext("2d", { alpha: false })!;
-        data = context.getImageData(sx, sy, sw, sh);
-      } catch {
-        data = undefined;
-      }
+    try {
+      const context = this.canvas.getContext("2d", { alpha: false })!;
+      data = context.getImageData(sx, sy, sw, sh);
+    } catch {
+      data = undefined;
+    }
 
-      if (!data) {
-        reject(new ImageRenderingError());
-        return;
-      }
+    if (!data) {
+      throw new ImageRenderingError();
+    }
 
-      const colors = rgbBuckets.map((color) => {
-        const code = typeof color === "string" ? parseInt(color, 16) : ~~color;
-        const r = (code >> 16) & 0xff;
-        const g = (code >> 8) & 0xff;
-        const b = code & 0xff;
-        return { r, g, b, bucket: color };
-      });
-      const hist: { [color: string]: number } = Object.fromEntries(
-        rgbBuckets.map((color) => [color, 0]),
-      );
+    const colors = rgbBuckets.map((color) => {
+      const code = typeof color === "string" ? parseInt(color, 16) : ~~color;
+      const r = (code >> 16) & 0xff;
+      const g = (code >> 8) & 0xff;
+      const b = code & 0xff;
+      return { r, g, b, bucket: color };
+    });
+    const hist: { [color: string]: number } = Object.fromEntries(
+      rgbBuckets.map((color) => [color, 0]),
+    );
 
-      const len = data.data.length;
-      for (let i = 0; i < len; i += 4) {
-        const r = data.data[i];
-        const g = data.data[i + 1];
-        const b = data.data[i + 2];
-        const a = data.data[i + 3];
+    const len = data.data.length;
+    for (let i = 0; i < len; i += 4) {
+      const r = data.data[i];
+      const g = data.data[i + 1];
+      const b = data.data[i + 2];
+      const a = data.data[i + 3];
 
-        if (a > 0) {
-          for (const color of colors) {
-            if (
-              Math.abs(r - color.r) +
-                Math.abs(g - color.g) +
-                Math.abs(b - color.b) <=
-              tolerance
-            ) {
-              hist[color.bucket]++;
-              break;
-            }
+      if (a > 0) {
+        for (const color of colors) {
+          if (
+            Math.abs(r - color.r) +
+              Math.abs(g - color.g) +
+              Math.abs(b - color.b) <=
+            tolerance
+          ) {
+            hist[color.bucket]++;
+            break;
           }
         }
       }
+    }
 
-      resolve(hist);
-    });
+    return hist;
   }
 
-  getDominantColor(): Promise<{ r: number; g: number; b: number }> {
-    return new Promise((resolve, reject) => {
-      let data: ImageData | undefined = undefined;
-      try {
-        const context = this.canvas.getContext("2d")!;
-        data = context.getImageData(
-          0,
-          0,
-          this.canvas.width,
-          this.canvas.height,
-        );
-      } catch {
-        data = undefined;
-      }
+  getDominantColor(): { r: number; g: number; b: number } {
+    let data: ImageData | undefined = undefined;
+    try {
+      const context = this.canvas.getContext("2d")!;
+      data = context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    } catch {
+      data = undefined;
+    }
 
-      if (!data) {
-        reject(new ImageRenderingError());
-        return;
-      }
+    if (!data) {
+      throw new ImageRenderingError();
+    }
 
-      let denom = 0;
-      const rgb = { r: 0, g: 0, b: 0 };
-      const len = data.data.length;
-      for (let i = 0; i < len; i += 4) {
-        const r = data.data[i];
-        const g = data.data[i + 1];
-        const b = data.data[i + 2];
-        const a = data.data[i + 3];
+    let denom = 0;
+    const rgb = { r: 0, g: 0, b: 0 };
+    const len = data.data.length;
+    for (let i = 0; i < len; i += 4) {
+      const r = data.data[i];
+      const g = data.data[i + 1];
+      const b = data.data[i + 2];
+      const a = data.data[i + 3];
 
-        denom += a;
-        rgb.r += r * a;
-        rgb.g += g * a;
-        rgb.b += b * a;
-      }
+      denom += a;
+      rgb.r += r * a;
+      rgb.g += g * a;
+      rgb.b += b * a;
+    }
 
-      rgb.r = ~~(rgb.r / denom);
-      rgb.g = ~~(rgb.g / denom);
-      rgb.b = ~~(rgb.b / denom);
-      resolve(rgb);
-    });
+    rgb.r = ~~(rgb.r / denom);
+    rgb.g = ~~(rgb.g / denom);
+    rgb.b = ~~(rgb.b / denom);
+    return rgb;
   }
 }
 

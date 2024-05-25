@@ -1,6 +1,6 @@
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
-import { Settings } from "./Settings";
+import { clamp, Settings } from "./Settings";
 
 class Sensor {
   private _imageData: ComposedImage | null = null;
@@ -10,7 +10,7 @@ class Sensor {
   public readonly dy: number;
 
   constructor(public readonly config: Sensor.Configuration) {
-    this.radius = config.range + config.width;
+    this.radius = ~~Math.round(config.range + config.width);
     this.dx = config.range * Math.cos(config.angle);
     this.dy = config.range * Math.sin(config.angle);
   }
@@ -29,7 +29,9 @@ class Sensor {
       `<path
         d="M ${this.radius} ${this.radius} l ${this.dx} ${this.dy}"
         stroke="${Sensor.color.radar[this.config.index]}"
-        stroke-width="${this.config.width}px"
+        stroke-width="${Math.ceil(
+          this.config.width / Settings.singleton.sensorAccuracy,
+        )}px"
         stroke-linecap="butt"
         fill="none"
         shape-rendering="crispEdges"
@@ -76,11 +78,12 @@ class Sensor {
     context.drawImage(this.canvas, -this.radius, -this.radius);
   }
 
-  async read(
+  scan(
     composedMask: ComposedImage,
     position: { x: number; y: number },
-  ): Promise<number> {
-    const hist = await composedMask.getColorBuckets(
+  ): [number, number] {
+    const scale = Settings.singleton.sensorAccuracy;
+    const hist = composedMask.getColorBuckets(
       [
         this.maskColor + Sensor.available,
         this.maskColor + Sensor.lapLine,
@@ -88,10 +91,10 @@ class Sensor {
       ],
       0x01,
       {
-        x: position.x - this.radius,
-        y: position.y - this.radius,
-        w: this.radius * 2,
-        h: this.radius * 2,
+        x: (position.x - this.radius) * scale,
+        y: (position.y - this.radius) * scale,
+        w: this.radius * 2 * scale,
+        h: this.radius * 2 * scale,
       },
     );
 
@@ -99,7 +102,58 @@ class Sensor {
       hist[this.maskColor + Sensor.available] +
       hist[this.maskColor + Sensor.lapLine];
     const off = hist[this.maskColor + Sensor.offTrack];
-    return on / (on + off);
+    return [on, on + off];
+  }
+
+  static readAll(
+    sensors: Sensor[],
+    mask: ComposedImage,
+    cx: number,
+    cy: number,
+    ca: number,
+  ): number[] {
+    const readings = sensors.map(() => 0);
+
+    // Get the relevant portion of the mask as a buffer
+    const radius = Math.max(...sensors.map((sensor) => sensor.radius));
+    const w = mask.canvas.width;
+    const h = mask.canvas.height;
+    const sx = clamp(cx - radius, 0, w - 1);
+    const sy = clamp(cy - radius, 0, h - 1);
+    const sw = clamp(radius * 2, 1, w - sx);
+    const sh = clamp(radius * 2, 1, h - sy);
+    const data = mask.canvas
+      ?.getContext("2d", { alpha: false })
+      ?.getImageData(sx, sy, sw, sh)?.data;
+    if (!data) {
+      return readings;
+    }
+
+    for (let i = 0; i < sensors.length; i++) {
+      const sensor = sensors[i];
+      const dx = Math.cos(sensor.config.angle + ca);
+      const dy = Math.sin(sensor.config.angle + ca);
+
+      let dist = 0;
+      for (let r = 0; r < sensor.radius; r++) {
+        const row = clamp(Math.round(radius + r * dy), 0, sh - 1);
+        const col = clamp(Math.round(radius + r * dx), 0, sw - 1);
+        const offset = 4 * (row * sw + col);
+        const v =
+          ((data[offset] & 0xff) << 16) |
+          ((data[offset + 1] & 0xff) << 8) |
+          (data[offset + 2] & 0xff);
+        if (v & Sensor.offTrack) {
+          break;
+        } else {
+          dist = r;
+        }
+      }
+
+      readings[i] = clamp(dist / sensor.config.range, 0, 1);
+    }
+
+    return readings;
   }
 }
 
