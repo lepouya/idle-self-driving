@@ -397,12 +397,22 @@ class Car {
       },
     );
 
+    // Crossing angle
+    const a1 = this.angle;
+    const a2 = this.track!.startingAngle;
+    let crossAngle = Math.abs(
+      (a1 < 0 ? a1 + Math.PI * 2 : a1) - (a2 < 0 ? a2 + Math.PI * 2 : a2),
+    );
+    if (crossAngle > Math.PI) {
+      crossAngle = Math.PI * 2 - crossAngle;
+    }
+
     // Crossing the start/finish line
     if (hist[Sensor.vehicle + Sensor.lapLine] > 0 && !this.inCrossing) {
       this.inCrossing = true;
 
       // Crossing in the wrong direction!
-      if (Math.abs(this.angle - this.track!.startingAngle) > Math.PI / 2) {
+      if (crossAngle > Math.PI / 2) {
         this.odometer = 0;
         this.laps = 0;
         return true;
@@ -418,7 +428,7 @@ class Car {
       this.inCrossing = false;
 
       // Turned around on the lap line and went the wrong way
-      if (Math.abs(this.angle - this.track!.startingAngle) > Math.PI / 2) {
+      if (crossAngle > Math.PI / 2) {
         this.odometer = 0;
         this.laps = 0;
         return true;
