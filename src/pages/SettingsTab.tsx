@@ -16,11 +16,11 @@ import {
   IonTextarea,
 } from "@ionic/react";
 
+import TabApp from "../components/TabApp";
 import Settings, { useSettings } from "../model/Settings";
 import database from "../utils/database";
 import { decode, encode } from "../utils/encoding";
 import Format from "../utils/format";
-import TabApp from "./TabApp";
 
 export default function SettingsTab() {
   const debug = isDebug();

@@ -12,11 +12,11 @@ import {
   IonToggle,
 } from "@ionic/react";
 
+import TabApp from "../components/TabApp";
 import Car, { useCars } from "../model/Car";
 import { useSettings } from "../model/Settings";
 import { useTracks } from "../model/Track";
 import Format from "../utils/format";
-import TabApp from "./TabApp";
 
 export default function DrivingTab() {
   const settings = useSettings();

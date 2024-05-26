@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 
+import Sensor from "../model/Sensor";
+import Settings, { useSettings } from "../model/Settings";
+import Track from "../model/Track";
+import DrivingTab from "../pages/DrivingTab";
+import SettingsTab from "../pages/SettingsTab";
 import database from "../utils/database";
 import shortcut from "../utils/shortcut";
-import Settings, { useSettings } from "./Settings";
 
 export default function AppEvents() {
   const settings = useSettings();
@@ -20,3 +24,11 @@ export default function AppEvents() {
 
   return null;
 }
+
+AppEvents.initialize = async function () {
+  await database.initialize();
+  DrivingTab.init();
+  SettingsTab.init();
+  await Settings.load();
+  await Promise.all([Track.loadAll(), Sensor.loadAll()]);
+};

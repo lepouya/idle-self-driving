@@ -23,4 +23,6 @@ Playing with this idea I have for a self-training driving system.
 - ~~Network objects and rendering~~
 - ~~Racing and scoring~~
 - ~~Auto run multiple instances at once~~
+- ~~Performance improvement~~
 - Customization screen for sensors and network
+- Help message and guide

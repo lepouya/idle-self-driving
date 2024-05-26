@@ -16,8 +16,8 @@ import {
 } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 
-import Icon from "../components/Icon";
 import genRegistry from "../utils/registry";
+import Icon from "./Icon";
 
 type TabProps = {
   path: string;
@@ -31,7 +31,8 @@ type TabProps = {
 };
 
 export default function TabApp() {
-  const tabs = useTabs();
+  const tabs = TabApp.useTabs();
+
   return (
     <IonReactRouter>
       <IonTabs>
@@ -107,7 +108,7 @@ TabApp.unregister = function (tab: TabProps | string) {
   registry.signal();
 };
 
-function useTabs() {
+TabApp.useTabs = function () {
   const tabs = registry.useHook();
   return Object.values(tabs);
-}
+};
