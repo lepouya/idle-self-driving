@@ -167,10 +167,10 @@ export class Settings {
     // tick all sources
     const results: Record<string, any[]> = {};
     const tickScale = 1 / this.globalTimeDilation;
-    const tps = [dt, 0];
+    const tps = [dt, 1];
     while (dt > 0) {
       const tick = clamp(dt, this.minUpdateSecs, this.maxTickSecs);
-      tps[1]++;
+      // tps[1]++;
       dt -= tick;
       if (source === "tick") {
         Car.tickAll(this.globalPaused ? 0 : tick * tickScale);
@@ -184,7 +184,7 @@ export class Settings {
       lastResult: Object.values(results)
         .flat()
         .filter((value, index, self) => self.indexOf(value) === index),
-      tps: (this.execution[source]?.tps || 0) * 0.9 + (tps[1] / tps[0]) * 0.1,
+      tps: (this.execution[source]?.tps || 0) * 0.5 + (tps[1] / tps[0]) * 0.5,
       fps: this.execution[source]?.fps || 0,
     };
 
@@ -208,8 +208,8 @@ export class Settings {
       this.lastTick - this.lastRender >= 1000.0 / this.rendersPerSecond
     ) {
       this.execution[source].fps =
-        (this.execution[source].fps || 0) * 0.9 +
-        (1000.0 / (this.lastTick - this.lastRender)) * 0.1;
+        (this.execution[source].fps || 0) * 0.5 +
+        (1000.0 / (this.lastTick - this.lastRender)) * 0.5;
       this.lastRender = this.lastTick;
       onRender(this);
     }

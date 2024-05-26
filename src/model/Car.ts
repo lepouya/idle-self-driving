@@ -209,7 +209,7 @@ class Car {
     }
   }
 
-  render(context: CanvasRenderingContext2D) {
+  render(context: CanvasRenderingContext2D, highlight = false) {
     if (!this.canvas) {
       return;
     }
@@ -225,7 +225,15 @@ class Car {
         sensor.render(context, this.sensorReadings[idx]),
       );
     }
+
     context.drawImage(this.canvas, ~~(-this.width / 2), ~~(-this.height / 2));
+    if (highlight) {
+      const intensity = Math.abs(Math.sin(Date.now() / 200) + 1);
+      context.filter = `blur(${intensity * 5}px) brightness(${
+        intensity * 100
+      }%)`;
+      context.drawImage(this.canvas, ~~(-this.width / 2), ~~(-this.height / 2));
+    }
 
     context.restore();
   }
@@ -547,7 +555,12 @@ module Car {
   }
 
   export function renderAll(context: CanvasRenderingContext2D) {
-    Object.values(registry.get()).forEach((car) => car.render(context));
+    // Check if the run has ended
+    const cars = Object.values(registry.get())
+      .filter((car) => car.name !== "Manual" && car.net)
+      .sort((a, b) => b.score.score - a.score.score);
+
+    cars.forEach((car, idx) => car.render(context, idx === 0));
   }
 
   export function tickAll(dt: number) {
