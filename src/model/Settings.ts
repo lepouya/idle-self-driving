@@ -166,18 +166,14 @@ export class Settings {
 
     // tick all sources
     const results: Record<string, any[]> = {};
-    const tickScale = 1 / 1000 / this.globalTimeDilation;
+    const tickScale = 1 / this.globalTimeDilation;
     const tps = [dt, 0];
     while (dt > 0) {
-      dt -= clamp(dt, this.minUpdateSecs, this.maxTickSecs);
+      const tick = clamp(dt, this.minUpdateSecs, this.maxTickSecs);
       tps[1]++;
-      const slice = now - dt * 1000;
-      const tick = (slice - lastTick!) * tickScale;
-
-      // Delta: tick
-      // Update time: slice
+      dt -= tick;
       if (source === "tick") {
-        Car.tickAll(this.globalPaused ? 0 : tick);
+        Car.tickAll(this.globalPaused ? 0 : tick * tickScale);
       }
     }
 

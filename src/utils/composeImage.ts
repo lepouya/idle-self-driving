@@ -56,19 +56,33 @@ export class ComposedImage {
     y: number,
     w: number,
     h: number,
-  ): { buffer: Uint32Array; width: number; height: number } {
+  ): {
+    buffer: Uint32Array;
+    startX: number;
+    startY: number;
+    width: number;
+    height: number;
+  } {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
     const sx = clampInt(x, 0, cw - 1);
     const sy = clampInt(y, 0, ch - 1);
     const sw = clampInt(w, 1, cw - sx);
     const sh = clampInt(h, 1, ch - sy);
-    const img = this.canvas?.getContext("2d")?.getImageData(sx, sy, sw, sh);
+    const img = this.canvas
+      ?.getContext("2d", { alpha: false })
+      ?.getImageData(sx, sy, sw, sh);
     if (!img) {
       throw new ImageRenderingError();
     }
     const data = new Uint32Array(img.data.buffer);
-    return { buffer: data, width: sw, height: sh };
+    return {
+      buffer: data,
+      startX: sx - x,
+      startY: sy - y,
+      width: sw,
+      height: sh,
+    };
   }
 }
 

@@ -29,8 +29,11 @@ class Car {
   public endTime = 0;
   public collided = false;
   private pastTracking: { x: number; y: number }[] = [];
+
+  // Sensors
   private sensorsReady = true;
-  private lastSensorReading = 0;
+  private sensorReadingTime = 0;
+  private sensorReadings: number[] = [];
   public visualizeSensors = false;
 
   // Network evaluation
@@ -182,7 +185,7 @@ class Car {
 
     // Reset collision status
     this.sensorsReady = true;
-    this.lastSensorReading = Date.now();
+    this.sensorReadingTime = Date.now();
   }
 
   endRun(collided = true) {
@@ -217,8 +220,10 @@ class Car {
     context.translate(~~this.position.x, ~~this.position.y);
     context.rotate(this.angle);
 
-    if (this.visualizeSensors) {
-      Sensor.getAll().forEach((sensor) => sensor.render(context));
+    if (this.visualizeSensors || this.name === "Manual") {
+      Sensor.getAll().forEach((sensor, idx) =>
+        sensor.render(context, this.sensorReadings[idx]),
+      );
     }
     context.drawImage(this.canvas, ~~(-this.width / 2), ~~(-this.height / 2));
 
@@ -361,7 +366,7 @@ class Car {
     }
 
     // Don't read sensors too often if a previous thread is working
-    if (!this.sensorsReady && Date.now() - this.lastSensorReading < 100) {
+    if (!this.sensorsReady && Date.now() - this.sensorReadingTime < 100) {
       return;
     }
 
@@ -397,7 +402,7 @@ class Car {
           return this.endRun();
         }
 
-        const sensorReadings = Sensor.readAll(
+        this.sensorReadings = Sensor.readAll(
           sensors,
           image,
           this.position.x,
@@ -408,7 +413,7 @@ class Car {
         // Eval net using sensors
         if (this.net) {
           const outputs = this.net.eval([
-            ...sensorReadings,
+            ...this.sensorReadings,
             this.acceleration,
             this.steering,
             this.speed / Settings.singleton.maxSpeed,
@@ -423,7 +428,7 @@ class Car {
       })
       .finally(() => {
         this.sensorsReady = true;
-        this.lastSensorReading = Date.now();
+        this.sensorReadingTime = Date.now();
       });
   }
 
@@ -557,10 +562,13 @@ module Car {
     if (
       settings.manualControl &&
       (!cars["Manual"] ||
-        cars["Manual"]?.collided ||
+        (cars["Manual"]?.collided ?? true) ||
         (cars["Manual"]?.track?.name ?? "") !== track.name)
     ) {
-      new Car("Manual", "#33eeee");
+      const car = new Car("Manual", "#33eeee");
+      car.placeOnTrack(track);
+    } else if (!settings.manualControl && cars["Manual"]) {
+      unregister("Manual");
     }
 
     // Check if the run has ended

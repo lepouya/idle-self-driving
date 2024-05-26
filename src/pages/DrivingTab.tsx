@@ -9,6 +9,7 @@ import {
   IonRow,
   IonSelect,
   IonSelectOption,
+  IonToggle,
 } from "@ionic/react";
 
 import App from "../model/App";
@@ -125,6 +126,18 @@ export default function DrivingTab() {
             <IonLabel slot="end">
               {Format(settings.execution["tick"]?.fps || 0)} fps
             </IonLabel>
+          </IonItem>
+          <IonItem>
+            <IonToggle
+              checked={settings.manualControl}
+              onIonChange={(e) => {
+                settings.manualControl = e.detail.checked;
+                App.Settings.signalUpdate();
+                Car.nextGeneration(track, false);
+              }}
+            >
+              Manually Controlled Car
+            </IonToggle>
           </IonItem>
         </IonCol>
       </IonRow>

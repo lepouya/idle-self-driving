@@ -70,12 +70,13 @@ class Sensor {
     return this._imageData;
   }
 
-  render(context: CanvasRenderingContext2D) {
+  render(context: CanvasRenderingContext2D, scale = 1) {
     if (!this.canvas) {
       return;
     }
 
-    context.drawImage(this.canvas, ~~-this.radius, ~~-this.radius);
+    const r = ~~(this.radius * scale);
+    context.drawImage(this.canvas, -r, -r, r * 2, r * 2);
   }
 
   static readAll(
@@ -89,9 +90,9 @@ class Sensor {
 
     // Get the relevant portion of the mask as a buffer
     const radius = ~~Math.max(...sensors.map((sensor) => sensor.radius));
-    const { buffer, width, height } = mask.getPixels(
-      cx - radius,
-      cy - radius,
+    const { buffer, startX, startY, width, height } = mask.getPixels(
+      ~~cx - radius,
+      ~~cy - radius,
       radius * 2,
       radius * 2,
     );
@@ -103,8 +104,8 @@ class Sensor {
 
       let dist = 0;
       for (let r = 0; r < sensor.radius; r++) {
-        const row = clamp(~~(radius + r * dy), 0, height - 1);
-        const col = clamp(~~(radius + r * dx), 0, width - 1);
+        const row = clamp(~~(radius + r * dy - startY), 0, height - 1);
+        const col = clamp(~~(radius + r * dx - startX), 0, width - 1);
         const v = buffer[row * width + col];
         // HTML colors are RGB, but canvas data is ABGR
         const rv = ((v & 0xff0000) >> 16) | ((v & 0xff) << 16) | (v & 0xff00);
