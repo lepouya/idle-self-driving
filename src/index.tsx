@@ -20,13 +20,14 @@ import { createRoot } from "react-dom/client";
 
 import { IonApp, setupIonicReact } from "@ionic/react";
 
-import App from "./model/App";
-import Car from "./model/Car";
+import AppEvents from "./model/AppEvents";
 import Sensor from "./model/Sensor";
+import Settings from "./model/Settings";
 import Track from "./model/Track";
 import DrivingTab from "./pages/DrivingTab";
 import SettingsTab from "./pages/SettingsTab";
 import TabApp from "./pages/TabApp";
+import database from "./utils/database";
 
 setupIonicReact();
 
@@ -35,28 +36,19 @@ div.id = "root";
 document.body.appendChild(div);
 const root = createRoot(div);
 
-// import { IonLoading } from "@ionic/react";
-// root.render(
-//   <IonLoading
-//     isOpen={true}
-//     message="Loading assets..."
-//     spinner="lines-sharp"
-//   />,
-// );
-
 window.addEventListener(
   "load",
   async () => {
-    await App.Database.initialize();
+    await database.initialize();
     DrivingTab.init();
     SettingsTab.init();
-    await App.Settings.load();
-    await Promise.all([Track.loadAll(), Car.resetAll(), Sensor.loadAll()]);
+    await Settings.load();
+    await Promise.all([Track.loadAll(), Sensor.loadAll()]);
 
     root.render(
       <StrictMode>
         <IonApp>
-          <App />
+          <AppEvents />
           <TabApp />
         </IonApp>
       </StrictMode>,

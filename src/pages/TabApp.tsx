@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Redirect, Route } from "react-router-dom";
 
 import {
@@ -16,10 +17,21 @@ import {
 import { IonReactRouter } from "@ionic/react-router";
 
 import Icon from "../components/Icon";
-import App from "../model/App";
+import genRegistry from "../utils/registry";
+
+type TabProps = {
+  path: string;
+  content: ReactNode;
+
+  icon?: string;
+  label?: string;
+  title?: string;
+
+  from?: string;
+};
 
 export default function TabApp() {
-  const tabs = App.useTabs();
+  const tabs = useTabs();
   return (
     <IonReactRouter>
       <IonTabs>
@@ -81,4 +93,21 @@ export default function TabApp() {
       </IonTabs>
     </IonReactRouter>
   );
+}
+
+const registry = genRegistry<Record<string, TabProps>>({});
+
+TabApp.register = function (tab: TabProps) {
+  registry.get()[tab.path] = tab;
+  registry.signal();
+};
+
+TabApp.unregister = function (tab: TabProps | string) {
+  delete registry.get()[typeof tab === "string" ? tab : tab.path];
+  registry.signal();
+};
+
+function useTabs() {
+  const tabs = registry.useHook();
+  return Object.values(tabs);
 }

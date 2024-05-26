@@ -1,7 +1,7 @@
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
 import Sensor from "./Sensor";
-import { Settings } from "./Settings";
+import Settings from "./Settings";
 
 abstract class Track {
   private _imageData: ComposedImage | null = null;
@@ -157,20 +157,7 @@ abstract class Track {
 }
 
 module Track {
-  const registry = genRegistry<Record<string, Track>>({});
-
-  export const useHook = registry.useHook;
-  export const signalUpdate = registry.signal;
-
-  export function register(track: Track) {
-    registry.get()[track.name] = track;
-    registry.signal();
-  }
-
-  export function unregister(track: Track | string) {
-    delete registry.get()[typeof track === "string" ? track : track.name];
-    registry.signal();
-  }
+  export const registry = genRegistry<Record<string, Track>>({});
 
   export async function loadAll() {
     const tracks = [
@@ -179,14 +166,16 @@ module Track {
       new OvalTrack("Oval"),
       new CurvyTrack("Curvy"),
     ];
-    tracks.forEach((track) => register(track));
+    tracks.forEach((track) => {
+      registry.get()[track.name] = track;
+    });
     await Promise.all(tracks.map((track) => track.fetchImageData()));
-    signalUpdate();
+    registry.signal();
   }
 }
 
 export function useTracks() {
-  return Track.useHook();
+  return Track.registry.useHook();
 }
 
 export default Track;

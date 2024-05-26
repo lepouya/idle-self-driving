@@ -1,37 +1,34 @@
+import clamp from "../utils/clamp";
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
-import { clamp, Settings } from "./Settings";
+import Settings from "./Settings";
 
 class Sensor {
   private _imageData: ComposedImage | null = null;
 
-  public readonly radius: number;
-  public readonly dx: number;
-  public readonly dy: number;
+  private path: string;
 
-  constructor(public readonly config: Sensor.Configuration) {
-    this.radius = ~~Math.round(config.range + config.width);
-    this.dx = config.range * Math.cos(config.angle);
-    this.dy = config.range * Math.sin(config.angle);
+  constructor(public readonly range: number, public readonly angle: number) {
+    const dx = range * Math.cos(angle);
+    const dy = range * Math.sin(angle);
+    this.path = `M ${~~range} ${~~range} l ${~~dx} ${~~dy}`;
   }
 
   get maskColor() {
-    return Sensor.radar[this.config.index];
+    return Sensor.radar;
   }
 
   get mask(): string {
     return [
       `<svg
-        width="${this.radius * 2}px"
-        height="${this.radius * 2}px"
-        viewBox="0 0 ${this.radius * 2} ${this.radius * 2}"
+        width="${this.range * 2}px"
+        height="${this.range * 2}px"
+        viewBox="0 0 ${this.range * 2} ${this.range * 2}"
       >`,
       `<path
-        d="M ${this.radius} ${this.radius} l ${this.dx} ${this.dy}"
-        stroke="${Sensor.color.radar[this.config.index]}"
-        stroke-width="${Math.ceil(
-          this.config.width / Settings.singleton.sensorAccuracy,
-        )}px"
+        d="${this.path}"
+        stroke="${Sensor.color.radar}"
+        stroke-width="2px"
         stroke-linecap="butt"
         fill="none"
         shape-rendering="crispEdges"
@@ -43,14 +40,14 @@ class Sensor {
   get image(): string {
     return [
       `<svg
-        width="${this.radius * 2}px"
-        height="${this.radius * 2}px"
-        viewBox="0 0 ${this.radius * 2} ${this.radius * 2}"
+        width="${this.range * 2}px"
+        height="${this.range * 2}px"
+        viewBox="0 0 ${this.range * 2} ${this.range * 2}"
       >`,
       `<path
-        d="M ${this.radius} ${this.radius} l ${this.dx} ${this.dy}"
+        d="${this.path}"
         stroke="green"
-        stroke-width="${this.config.width}px"
+        stroke-width="2px"
         stroke-linecap="round"
         fill="none"
       />`,
@@ -64,8 +61,8 @@ class Sensor {
 
   async fetchImageData() {
     this._imageData = await composeImage([this.image], {
-      width: this.radius * 2,
-      height: this.radius * 2,
+      width: this.range * 2,
+      height: this.range * 2,
     });
     return this._imageData;
   }
@@ -75,51 +72,33 @@ class Sensor {
       return;
     }
 
-    const r = ~~(this.radius * scale);
+    const r = ~~(this.range * scale);
     context.drawImage(this.canvas, -r, -r, r * 2, r * 2);
   }
 
-  static readAll(
-    sensors: Sensor[],
-    mask: ComposedImage,
-    cx: number,
-    cy: number,
-    ca: number,
-  ): number[] {
-    const readings = sensors.map(() => 0);
+  read(
+    buffer: Uint32Array,
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    heading: number,
+  ) {
+    const dx = Math.cos(this.angle + heading);
+    const dy = Math.sin(this.angle + heading);
 
-    // Get the relevant portion of the mask as a buffer
-    const radius = ~~Math.max(...sensors.map((sensor) => sensor.radius));
-    const { buffer, startX, startY, width, height } = mask.getPixels(
-      ~~cx - radius,
-      ~~cy - radius,
-      radius * 2,
-      radius * 2,
-    );
-
-    for (let i = 0; i < sensors.length; i++) {
-      const sensor = sensors[i];
-      const dx = Math.cos(sensor.config.angle + ca);
-      const dy = Math.sin(sensor.config.angle + ca);
-
-      let dist = 0;
-      for (let r = 0; r < sensor.radius; r++) {
-        const row = clamp(~~(radius + r * dy - startY), 0, height - 1);
-        const col = clamp(~~(radius + r * dx - startX), 0, width - 1);
-        const v = buffer[row * width + col];
-        // HTML colors are RGB, but canvas data is ABGR
-        const rv = ((v & 0xff0000) >> 16) | ((v & 0xff) << 16) | (v & 0xff00);
-        if (rv & Sensor.offTrack) {
-          break;
-        } else {
-          dist = r;
-        }
+    let dist = 0;
+    for (let r = 0; r < this.range; r++) {
+      const row = clamp(~~(centerY + r * dy), 0, height - 1);
+      const col = clamp(~~(centerX + r * dx), 0, width - 1);
+      if (Sensor.check(buffer[row * width + col], Sensor.offTrack)) {
+        break;
+      } else {
+        dist = r;
       }
-
-      readings[i] = clamp(dist / sensor.config.range, 0, 1);
     }
 
-    return readings;
+    return clamp(dist / this.range, 0, 1);
   }
 }
 
@@ -127,66 +106,100 @@ module Sensor {
   export const available = 0x000000;
   export const offTrack = 0x800000;
   export const lapLine = 0x008000;
-  export const vehicle = 0x7f7fff;
-  export const radar = [
-    0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xa0, 0xb0, 0xc0,
-    0xd0, 0xe0,
-  ];
+  export const vehicle = 0x7f7f7f;
+  export const radar = 0x000080;
 
   export const color = {
     available: toSvgColor(available),
     offTrack: toSvgColor(offTrack),
     lapLine: toSvgColor(lapLine),
     vehicle: toSvgColor(vehicle),
-    radar: radar.map(toSvgColor),
+    radar: toSvgColor(radar),
   };
 
-  function toSvgColor(color: number) {
-    return "#" + color.toString(16).padStart(6, "0");
+  function toSvgColor(col: number) {
+    return "#" + col.toString(16).padStart(6, "0");
   }
 
-  export interface Configuration {
-    readonly index: number;
-    readonly angle: number;
-    readonly range: number;
-    readonly width: number;
+  function toCanvasColor(col: number) {
+    // HTML colors are RGB, but canvas data is ABGR
+    return ((col & 0xff0000) >> 16) | ((col & 0xff) << 16) | (col & 0xff00);
   }
 
-  const registry = genRegistry<Record<number, Sensor>>({});
-
-  export const useHook = registry.useHook;
-  export const signalUpdate = registry.signal;
-
-  export function getAll() {
-    return Object.values(registry.get());
+  export function check(argb: number, ...sensorColors: number[]) {
+    const color = toCanvasColor(
+      sensorColors.reduce((acc, color) => acc | color, 0),
+    );
+    return (argb & color) === color;
   }
 
-  export function register(sensor: Sensor) {
-    registry.get()[sensor.config.index] = sensor;
-    registry.signal();
-  }
-
-  export function unregister(sensor: Sensor | number) {
-    delete registry.get()[
-      typeof sensor === "number" ? sensor : sensor.config.index
-    ];
-    registry.signal();
-  }
+  export const registry = genRegistry<Sensor[]>([]);
 
   export async function loadAll() {
     const sensors = Settings.singleton.sensors.map(
-      (config) => new Sensor(config),
+      ({ range, angle }) => new Sensor(range, angle),
     );
 
-    sensors.forEach((sensor) => register(sensor));
+    sensors.forEach((sensor) => registry.get().push(sensor));
     await Promise.all(sensors.map((sensor) => sensor.fetchImageData()));
-    signalUpdate();
+    registry.signal();
+  }
+
+  export function readAll(
+    mask: ComposedImage,
+    cx: number,
+    cy: number,
+    ca: number,
+  ): number[] {
+    // Get the relevant portion of the mask as a buffer
+    const radius = ~~Math.max(...registry.get().map((sensor) => sensor.range));
+    const { buffer, startX, startY, width, height } = mask.getPixels(
+      ~~cx - radius,
+      ~~cy - radius,
+      radius * 2,
+      radius * 2,
+    );
+
+    return registry
+      .get()
+      .map((sensor) =>
+        sensor.read(
+          buffer,
+          width,
+          height,
+          radius - startX,
+          radius - startY,
+          ca,
+        ),
+      );
+
+    // const readings = sensors.map(() => 0);
+    // for (let i = 0; i < sensors.length; i++) {
+    //   const sensor = sensors[i];
+    //   const dx = Math.cos(sensor.angle + ca);
+    //   const dy = Math.sin(sensor.angle + ca);
+
+    //   let dist = 0;
+    //   for (let r = 0; r < sensor.range; r++) {
+    //     const row = clamp(~~(radius + r * dy - startY), 0, height - 1);
+    //     const col = clamp(~~(radius + r * dx - startX), 0, width - 1);
+    //     if (Sensor.check(buffer[row * width + col], Sensor.offTrack)) {
+    //       break;
+    //     } else {
+    //       dist = r;
+    //     }
+    //   }
+
+    //   readings[i] = clamp(dist / sensor.range, 0, 1);
+    // }
+
+    // return readings;
   }
 }
 
 export function useSensors() {
-  const sensors = Sensor.useHook();
-  return Object.values(sensors);
+  const sensors = Sensor.registry.useHook();
+  return sensors;
 }
 
 export default Sensor;

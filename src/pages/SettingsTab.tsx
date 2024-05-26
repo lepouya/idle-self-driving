@@ -16,10 +16,11 @@ import {
   IonTextarea,
 } from "@ionic/react";
 
-import App from "../model/App";
-import { Settings } from "../model/Settings";
+import Settings, { useSettings } from "../model/Settings";
+import database from "../utils/database";
 import { decode, encode } from "../utils/encoding";
 import Format from "../utils/format";
+import TabApp from "./TabApp";
 
 export default function SettingsTab() {
   const debug = isDebug();
@@ -35,7 +36,7 @@ export default function SettingsTab() {
 }
 
 SettingsTab.init = () => {
-  App.Tab.register({
+  TabApp.register({
     path: "settings",
     content: <SettingsTab />,
     icon: "settingsOutline",
@@ -45,7 +46,7 @@ SettingsTab.init = () => {
 };
 
 function AppDataPanel() {
-  const settings = App.useSettings();
+  const settings = useSettings();
   const [textContents, setTextContents] = useState("");
   const debug = true; // Useful for now
 
@@ -81,8 +82,8 @@ function AppDataPanel() {
           <IonCol size="6">
             <IonButton
               onClick={() => {
-                App.Settings.load()
-                  .then(() => App.Settings.save())
+                Settings.load()
+                  .then(() => Settings.save())
                   .then(reload);
               }}
               expand="block"
@@ -91,7 +92,7 @@ function AppDataPanel() {
             </IonButton>
           </IonCol>
           <IonCol size="6">
-            <IonButton onClick={() => App.Settings.save(debug)} expand="block">
+            <IonButton onClick={() => Settings.save()} expand="block">
               Save
             </IonButton>
           </IonCol>
@@ -109,7 +110,7 @@ function AppDataPanel() {
             <IonButton
               onClick={() => {
                 settings.load(decode(textContents));
-                App.Settings.save().then(reload);
+                Settings.save().then(reload);
               }}
               expand="block"
             >
@@ -142,18 +143,18 @@ function AppDataPanel() {
 }
 
 function AdvancedPanel() {
-  const settings = App.useSettings();
-  const [tps, setTps] = useState(settings.ticksPerSecond);
-  const [fps, setFps] = useState(settings.rendersPerSecond);
+  const settings = useSettings();
+  const [tps, setTps] = useState(settings.ticksPerSec);
+  const [fps, setFps] = useState(settings.rendersPerSec);
   const [sps, setSps] = useState(settings.saveFrequencySecs);
 
   useEffect(() => {
-    setTps(settings.ticksPerSecond);
-  }, [settings.ticksPerSecond]);
+    setTps(settings.ticksPerSec);
+  }, [settings.ticksPerSec]);
 
   useEffect(() => {
-    setFps(settings.rendersPerSecond);
-  }, [settings.rendersPerSecond]);
+    setFps(settings.rendersPerSec);
+  }, [settings.rendersPerSec]);
 
   useEffect(() => {
     setSps(settings.saveFrequencySecs);
@@ -181,7 +182,7 @@ function AdvancedPanel() {
             Updating frequency:
           </IonCol>
           <IonCol size="6" className="ion-text-center">
-            {Math.floor(1000.0 / settings.ticksPerSecond)}ms
+            {Math.floor(1000.0 / settings.ticksPerSec)}ms
           </IonCol>
           <IonCol size="6"></IonCol>
           <IonCol size="6">
@@ -194,8 +195,7 @@ function AdvancedPanel() {
               value={tps}
               onIonInput={(e) => setTps(e.detail.value as number)}
               onIonChange={(e) => {
-                settings.ticksPerSecond = e.detail.value as number;
-                App.Settings.signalUpdate();
+                settings.set({ ticksPerSec: e.detail.value as number });
               }}
               className="ion-no-padding"
             ></IonRange>
@@ -204,7 +204,7 @@ function AdvancedPanel() {
             Rendering frequency:
           </IonCol>
           <IonCol size="6" className="ion-text-center">
-            {Math.floor(1000.0 / settings.rendersPerSecond)}ms
+            {Math.floor(1000.0 / settings.rendersPerSec)}ms
           </IonCol>
           <IonCol size="6"></IonCol>
           <IonCol size="6">
@@ -217,8 +217,7 @@ function AdvancedPanel() {
               value={fps}
               onIonInput={(e) => setFps(e.detail.value as number)}
               onIonChange={(e) => {
-                settings.rendersPerSecond = e.detail.value as number;
-                App.Settings.signalUpdate();
+                settings.set({ rendersPerSec: e.detail.value as number });
               }}
               className="ion-no-padding"
             ></IonRange>
@@ -252,8 +251,9 @@ function AdvancedPanel() {
               value={600 / sps}
               onIonInput={(e) => setSps(600 / (e.detail.value as number))}
               onIonChange={(e) => {
-                settings.saveFrequencySecs = 600 / (e.detail.value as number);
-                App.Settings.signalUpdate();
+                settings.set({
+                  saveFrequencySecs: 600 / (e.detail.value as number),
+                });
               }}
               className="ion-no-padding"
             ></IonRange>
@@ -273,7 +273,7 @@ function ResetPanel() {
     }
     setResetAcknowledged(false);
     Settings.reset();
-    App.Database.clear().then(reload);
+    database.clear().then(reload);
   }
 
   return (
@@ -322,7 +322,7 @@ function ResetPanel() {
 }
 
 function DebugPanel() {
-  const settings = App.useSettings();
+  const settings = useSettings();
   if (!window.location.search.toLowerCase().includes("debug")) {
     return null;
   }
@@ -396,8 +396,7 @@ function loadFile() {
         const settings = Settings.singleton;
         settings.load(decode(contents));
         settings.tick(undefined, "load");
-        App.Settings.signalUpdate();
-        App.Settings.save().then(reload);
+        Settings.save().then(reload);
       };
 
       reader.readAsText(files[0]);

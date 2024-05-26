@@ -1,16 +1,21 @@
+import clamp from "../utils/clamp";
+import database from "../utils/database";
+import genRegistry from "../utils/registry";
 import Car from "./Car";
 import Network from "./Network";
-import Sensor from "./Sensor";
 
-export class Settings {
+class Settings {
   static singleton = new Settings();
-  private constructor(..._: any[]) {}
+  constructor(settings?: Partial<Settings> | string) {
+    this.load(settings);
+    Settings.singleton = this;
+  }
 
   /// Simulation parameters
 
-  ticksPerSecond: number = 100;
-  rendersPerSecond: number = 30;
-  saveFrequencySecs: number = 60;
+  ticksPerSec = 100;
+  rendersPerSec = 30;
+  saveFrequencySecs = 60;
 
   minUpdateSecs = 0.01;
   maxUpdateSecs = 0.25;
@@ -21,10 +26,10 @@ export class Settings {
 
   /// Execution information
 
-  lastReset: number = Date.now();
-  lastSaved: number = 0;
-  lastLoaded: number = Date.now();
-  lastRender: number = 0;
+  lastReset = Date.now();
+  lastSaved = 0;
+  lastLoaded = Date.now();
+  lastRender = 0;
   lastTick?: number;
 
   onTickComplete?: (dt: number, source: string) => any;
@@ -62,14 +67,13 @@ export class Settings {
   /// Sensors configuration
 
   renderSensors = false;
-  sensorAccuracy = 1; // 0-1
 
-  sensors: Sensor.Configuration[] = [
-    { index: 0, angle: 0, range: 100, width: 4 },
-    { index: 1, angle: Math.PI / 6, range: 100, width: 2 },
-    { index: 2, angle: -Math.PI / 6, range: 100, width: 2 },
-    { index: 3, angle: Math.PI / 3, range: 100, width: 2 },
-    { index: 4, angle: -Math.PI / 3, range: 100, width: 2 },
+  sensors = [
+    { range: 100, angle: 0 },
+    { range: 100, angle: Math.PI / 6 },
+    { range: 100, angle: -Math.PI / 6 },
+    { range: 100, angle: Math.PI / 3 },
+    { range: 100, angle: -Math.PI / 3 },
   ];
 
   /// Neural network configuration
@@ -84,7 +88,7 @@ export class Settings {
   };
 
   sotaScore: Record<string, number> = {}; // Track name => score
-  sotaNet: Network.Configuration = Network.init(
+  sotaNet = Network.init(
     this.sensors.length + 4, // in: sensors + [accel, steer, speed, angle]
     2, // out: [accel, steer]
     [], // init with no hidden layers
@@ -92,39 +96,7 @@ export class Settings {
 
   /////////////
 
-  static reset(settings?: Partial<Settings>) {
-    const ss = new Settings();
-    ss.load(settings);
-    Settings.singleton = ss;
-    return ss;
-  }
-
-  static load(settings?: Partial<Settings> | string) {
-    return Settings.singleton.load(settings);
-  }
-
-  static save() {
-    return Settings.singleton.save();
-  }
-
-  static tick(
-    now?: number,
-    source?: string,
-    onSave?: () => void,
-    onRender?: () => void,
-  ) {
-    return Settings.singleton.tick(now, source, onSave, onRender);
-  }
-
-  load(settings?: Partial<Settings> | string): this {
-    if (!settings) {
-      return this;
-    }
-
-    if (typeof settings === "string") {
-      return this.load(JSON.parse(settings));
-    }
-
+  set(settings: Partial<Settings>): this {
     let k: keyof Settings;
     for (k in settings) {
       if (settings[k] == undefined || settings[k] == null) {
@@ -139,6 +111,18 @@ export class Settings {
       }
     }
 
+    Settings.registry.signal();
+    return this;
+  }
+
+  load(settings?: Partial<Settings> | string): this {
+    if (!settings) {
+      return this;
+    } else if (typeof settings === "string") {
+      return this.load(JSON.parse(settings));
+    }
+
+    this.set(settings);
     this.lastLoaded = Date.now();
     return this;
   }
@@ -205,7 +189,7 @@ export class Settings {
 
     if (
       onRender &&
-      this.lastTick - this.lastRender >= 1000.0 / this.rendersPerSecond
+      this.lastTick - this.lastRender >= 1000.0 / this.rendersPerSec
     ) {
       this.execution[source].fps =
         (this.execution[source].fps || 0) * 0.5 +
@@ -218,14 +202,51 @@ export class Settings {
   }
 }
 
-export function clamp(n = 0, min = 0, max = 1): number {
-  if (isNaN(n)) {
-    return min;
-  } else if (n < min) {
-    return min;
-  } else if (n > max) {
-    return max;
-  } else {
-    return n;
+module Settings {
+  export const registry = genRegistry(() => Settings.singleton);
+
+  export async function save() {
+    Settings.singleton.tick(undefined, "save");
+    const res = await database.write("Settings", Settings.singleton.save());
+    registry.signal();
+    return res;
+  }
+
+  export async function load() {
+    Settings.singleton.load(await database.read("Settings"));
+    Settings.singleton.tick(undefined, "load");
+    registry.signal();
+    return Settings.singleton;
+  }
+
+  export function reset(settings?: Partial<Settings>) {
+    Settings.singleton = new Settings(settings);
+    registry.signal();
+    return Settings.singleton;
+  }
+
+  export function tick(now?: number, source?: string) {
+    return Settings.singleton.tick(now, source, save, registry.signal);
+  }
+
+  const timers: NodeJS.Timeout[] = [];
+  export function addTickTimer() {
+    removeTickTimer();
+    const newTimerId = setInterval(
+      () => tick(undefined, "tick"),
+      1000.0 / Settings.singleton.ticksPerSec,
+    );
+    timers.push(newTimerId);
+  }
+
+  export function removeTickTimer() {
+    timers.forEach((t) => clearInterval(t));
+    timers.length = 0;
   }
 }
+
+export function useSettings() {
+  return Settings.registry.useHook();
+}
+
+export default Settings;

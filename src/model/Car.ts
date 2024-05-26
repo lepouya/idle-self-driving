@@ -1,9 +1,10 @@
+import clamp from "../utils/clamp";
 import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
-import App from "./App";
+import shortcut from "../utils/shortcut";
 import Network from "./Network";
 import Sensor from "./Sensor";
-import { clamp, Settings } from "./Settings";
+import Settings from "./Settings";
 import Track from "./Track";
 
 class Car {
@@ -53,7 +54,7 @@ class Car {
     }
 
     if (name) {
-      Car.register(this);
+      Car.registry.get()[name] = this;
     }
   }
 
@@ -221,9 +222,11 @@ class Car {
     context.rotate(this.angle);
 
     if (this.visualizeSensors || this.name === "Manual") {
-      Sensor.getAll().forEach((sensor, idx) =>
-        sensor.render(context, this.sensorReadings[idx]),
-      );
+      Sensor.registry
+        .get()
+        .forEach((sensor, idx) =>
+          sensor.render(context, this.sensorReadings[idx]),
+        );
     }
 
     context.drawImage(this.canvas, ~~(-this.width / 2), ~~(-this.height / 2));
@@ -332,34 +335,30 @@ class Car {
   }
 
   async renderSensors() {
-    const scale = Settings.singleton.sensorAccuracy;
     return composeImage([], {
-      width: Settings.singleton.trackWidth * scale,
-      height: Settings.singleton.trackHeight * scale,
+      width: Settings.singleton.trackWidth,
+      height: Settings.singleton.trackHeight,
       sources: [
         {
           src: this.track?.mask || "transparent",
-          stretch: scale,
           smoothing: false,
         },
         {
           src: this.mask,
           position: {
-            x: (this.position.x - this.width / 2) * scale,
-            y: (this.position.y - this.height / 2) * scale,
+            x: this.position.x - this.width / 2,
+            y: this.position.y - this.height / 2,
           },
-          stretch: scale,
           rotate: this.angle * (180 / Math.PI),
           composition: "lighter",
           smoothing: false,
         },
-        ...Sensor.getAll().map((sensor) => ({
+        ...Sensor.registry.get().map((sensor) => ({
           src: sensor.mask,
           position: {
-            x: (this.position.x - sensor.radius) * scale,
-            y: (this.position.y - sensor.radius) * scale,
+            x: this.position.x - sensor.range,
+            y: this.position.y - sensor.range,
           },
-          stretch: scale,
           rotate: this.angle * (180 / Math.PI),
           composition: "lighter" as const,
           smoothing: false,
@@ -379,25 +378,20 @@ class Car {
     }
 
     this.sensorsReady = false;
-    const scale = Settings.singleton.sensorAccuracy;
-    const sensors = Sensor.getAll();
-
     composeImage([], {
-      width: this.track!.width * scale,
-      height: this.track!.height * scale,
+      width: this.track!.width,
+      height: this.track!.height,
       sources: [
         {
           src: this.track!.mask,
-          stretch: scale,
           smoothing: false,
         },
         {
           src: this.mask,
           position: {
-            x: (this.position.x - this.width / 2) * scale,
-            y: (this.position.y - this.height / 2) * scale,
+            x: this.position.x - this.width / 2,
+            y: this.position.y - this.height / 2,
           },
-          stretch: scale,
           rotate: this.angle * (180 / Math.PI),
           composition: "lighter",
           smoothing: false,
@@ -411,7 +405,6 @@ class Car {
         }
 
         this.sensorReadings = Sensor.readAll(
-          sensors,
           image,
           this.position.x,
           this.position.y,
@@ -449,15 +442,11 @@ class Car {
       radius * 2,
       radius * 2,
     ).buffer;
-    const lapping = buffer.some(
-      (v) =>
-        (((v & 0xff0000) >> 16) | ((v & 0xff) << 16) | (v & 0xff00)) ===
-        (Sensor.vehicle | Sensor.lapLine),
+    const lapping = buffer.some((v) =>
+      Sensor.check(v, Sensor.vehicle, Sensor.lapLine),
     );
-    const offTrack = buffer.some(
-      (v) =>
-        (((v & 0xff0000) >> 16) | ((v & 0xff) << 16) | (v & 0xff00)) ===
-        (Sensor.vehicle | Sensor.offTrack),
+    const offTrack = buffer.some((v) =>
+      Sensor.check(v, Sensor.vehicle, Sensor.offTrack),
     );
 
     // Crossing angle
@@ -510,17 +499,17 @@ class Car {
   }
 
   manualControl() {
-    if (App.isKeyDown("ArrowDown", "S")) {
+    if (shortcut.some("ArrowDown", "S")) {
       this.acceleration = clamp(this.acceleration - 0.1, -1, -0.1);
-    } else if (App.isKeyDown("ArrowUp", "W")) {
+    } else if (shortcut.some("ArrowUp", "W")) {
       this.acceleration = clamp(this.acceleration + 0.1, 0.1, 1);
     } else {
       this.acceleration = 0;
     }
 
-    if (App.isKeyDown("ArrowLeft", "A")) {
+    if (shortcut.some("ArrowLeft", "A")) {
       this.steering = clamp(this.steering - 0.1, -1, -0.1);
-    } else if (App.isKeyDown("ArrowRight", "D")) {
+    } else if (shortcut.some("ArrowRight", "D")) {
       this.steering = clamp(this.steering + 0.1, 0.1, 1);
     } else {
       this.steering = 0;
@@ -529,36 +518,12 @@ class Car {
 }
 
 module Car {
-  const registry = genRegistry<Record<string, Car>>({});
-
-  export const useHook = registry.useHook;
-  export const signalUpdate = registry.signal;
-
-  export function register(car: Car) {
-    registry.get()[car.name] = car;
-    registry.signal();
-  }
-
-  export function unregister(car: Car | string) {
-    delete registry.get()[typeof car === "string" ? car : car.name];
-    registry.signal();
-  }
-
-  export async function resetAll() {
-    if (Settings.singleton.manualControl) {
-      new Car("Manual", "#33eeee");
-    }
-    await Promise.all(
-      Object.values(registry.get()).map((car) => car.fetchImageData()),
-    );
-    signalUpdate();
-  }
+  export const registry = genRegistry<Record<string, Car>>({});
 
   export function renderAll(context: CanvasRenderingContext2D) {
-    // Check if the run has ended
-    const cars = Object.values(registry.get())
-      .filter((car) => car.name !== "Manual" && car.net)
-      .sort((a, b) => b.score.score - a.score.score);
+    const cars = Object.values(registry.get()).sort(
+      (a, b) => b.score.score - a.score.score,
+    );
 
     cars.forEach((car, idx) => car.render(context, idx === 0));
   }
@@ -581,7 +546,7 @@ module Car {
       const car = new Car("Manual", "#33eeee");
       car.placeOnTrack(track);
     } else if (!settings.manualControl && cars["Manual"]) {
-      unregister("Manual");
+      delete cars["Manual"];
     }
 
     // Check if the run has ended
@@ -624,14 +589,13 @@ module Car {
       }
     });
     await Promise.all(Object.values(cars).map((car) => car.fetchImageData()));
-    App.Settings.save();
-    App.Settings.signalUpdate();
-    Car.signalUpdate();
+    Settings.save();
+    registry.signal();
   }
 }
 
 export function useCars() {
-  const cars = Car.useHook();
+  const cars = Car.registry.useHook();
   return Object.values(cars);
 }
 

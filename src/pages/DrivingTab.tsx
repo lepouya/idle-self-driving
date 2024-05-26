@@ -12,13 +12,14 @@ import {
   IonToggle,
 } from "@ionic/react";
 
-import App from "../model/App";
 import Car, { useCars } from "../model/Car";
+import { useSettings } from "../model/Settings";
 import { useTracks } from "../model/Track";
 import Format from "../utils/format";
+import TabApp from "./TabApp";
 
 export default function DrivingTab() {
-  const settings = App.useSettings();
+  const settings = useSettings();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tracks = useTracks();
   const cars = useCars();
@@ -89,8 +90,7 @@ export default function DrivingTab() {
               interface="popover"
               value={settings.currentTrack}
               onIonChange={(e) => {
-                settings.currentTrack = e.detail.value;
-                App.Settings.signalUpdate();
+                settings.set({ currentTrack: e.detail.value });
               }}
             >
               {Object.keys(tracks).map((name) => (
@@ -131,8 +131,7 @@ export default function DrivingTab() {
             <IonToggle
               checked={settings.manualControl}
               onIonChange={(e) => {
-                settings.manualControl = e.detail.checked;
-                App.Settings.signalUpdate();
+                settings.set({ manualControl: e.detail.checked });
                 Car.nextGeneration(track, false);
               }}
             >
@@ -146,7 +145,7 @@ export default function DrivingTab() {
 }
 
 DrivingTab.init = () => {
-  App.Tab.register({
+  TabApp.register({
     path: "driving",
     content: <DrivingTab />,
     icon: "speedometerOutline",
