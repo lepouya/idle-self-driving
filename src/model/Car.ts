@@ -8,7 +8,8 @@ import Settings from "./Settings";
 import Track from "./Track";
 
 class Car {
-  private _imageData: ComposedImage | null = null;
+  private renderImage: ComposedImage | undefined = undefined;
+  private sensorImage: ComposedImage | undefined = undefined;
 
   readonly width = Settings.singleton.carWidth;
   readonly height = Settings.singleton.carHeight;
@@ -117,16 +118,18 @@ class Car {
   }
 
   get canvas(): HTMLCanvasElement | undefined {
-    return this._imageData?.canvas;
+    return this.renderImage?.canvas;
   }
 
   async fetchImageData() {
-    this._imageData = await composeImage([], {
+    this.renderImage = await composeImage([], {
+      reuse: this.renderImage,
+      clear: true,
       sources: [{ src: this.image, opacity: this.net ? 0.666 : 1 }],
       width: this.width,
       height: this.height,
     });
-    return this._imageData;
+    return this.renderImage;
   }
 
   get score() {
@@ -381,6 +384,8 @@ class Car {
     composeImage([], {
       width: this.track!.width,
       height: this.track!.height,
+      reuse: this.sensorImage,
+      clear: true,
       sources: [
         {
           src: this.track!.mask,
@@ -399,6 +404,9 @@ class Car {
       ],
     })
       .then((image) => {
+        // Cache to avoid garbage collector pileup
+        this.sensorImage = image;
+
         const collision = this.checkCollision(image);
         if (collision) {
           return this.endRun();

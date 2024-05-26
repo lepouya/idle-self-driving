@@ -168,7 +168,7 @@ class Settings {
       lastResult: Object.values(results)
         .flat()
         .filter((value, index, self) => self.indexOf(value) === index),
-      tps: (this.execution[source]?.tps || 0) * 0.5 + (tps[1] / tps[0]) * 0.5,
+      tps: (this.execution[source]?.tps || 0) * 0.8 + (tps[1] / tps[0]) * 0.2,
       fps: this.execution[source]?.fps || 0,
     };
 
@@ -192,8 +192,8 @@ class Settings {
       this.lastTick - this.lastRender >= 1000.0 / this.rendersPerSec
     ) {
       this.execution[source].fps =
-        (this.execution[source].fps || 0) * 0.5 +
-        (1000.0 / (this.lastTick - this.lastRender)) * 0.5;
+        (this.execution[source].fps || 0) * 0.8 +
+        (1000.0 / (this.lastTick - this.lastRender)) * 0.2;
       this.lastRender = this.lastTick;
       onRender(this);
     }

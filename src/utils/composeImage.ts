@@ -24,6 +24,9 @@ export interface ImageOptions {
   height?: number;
   style?: Record<string, string>;
   className?: string | string[];
+
+  reuse?: HTMLCanvasElement | ComposedImage;
+  clear?: boolean;
 }
 
 export class ImageLoadingError extends Error {}
@@ -94,8 +97,14 @@ export default async function composeImage(
   const srcs = [...(sources || []), ...(opts?.sources || [])];
   const imgs = await Promise.all(srcs.map((src) => loadImage(src, opts)));
 
+  // Reuse the canvas if provided
+  let canvas =
+    opts.reuse instanceof HTMLCanvasElement ? opts.reuse : opts.reuse?.canvas;
+  if (!canvas) {
+    canvas = window.document.createElement("canvas");
+  }
+
   // Figure out the dimensions of the canvas
-  const canvas = window.document.createElement("canvas");
   canvas.width = opts.width || Math.max(...imgs.map(([img]) => img.width));
   canvas.height = opts.height || Math.max(...imgs.map(([img]) => img.height));
   canvas.className = [
@@ -108,6 +117,12 @@ export default async function composeImage(
 
   const context = canvas.getContext("2d")!;
 
+  // Clear the canvas if requested
+  if (opts.clear) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Draw the images in the given order
   for (let [img, props] of imgs) {
     context.save();
 

@@ -4,7 +4,7 @@ import Sensor from "./Sensor";
 import Settings from "./Settings";
 
 abstract class Track {
-  private _imageData: ComposedImage | null = null;
+  private renderImage: ComposedImage | undefined = undefined;
 
   readonly width = Settings.singleton.trackWidth;
   readonly height = Settings.singleton.trackHeight;
@@ -136,15 +136,17 @@ abstract class Track {
   }
 
   get canvas(): HTMLCanvasElement | undefined {
-    return this._imageData?.canvas;
+    return this.renderImage?.canvas;
   }
 
   async fetchImageData() {
-    this._imageData = await composeImage([this.image], {
+    this.renderImage = await composeImage([this.image], {
+      reuse: this.renderImage,
+      clear: true,
       width: this.width,
       height: this.height,
     });
-    return this._imageData;
+    return this.renderImage;
   }
 
   render(context: CanvasRenderingContext2D) {

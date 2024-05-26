@@ -4,7 +4,7 @@ import genRegistry from "../utils/registry";
 import Settings from "./Settings";
 
 class Sensor {
-  private _imageData: ComposedImage | null = null;
+  private renderImage: ComposedImage | undefined = undefined;
 
   private path: string;
 
@@ -56,15 +56,17 @@ class Sensor {
   }
 
   get canvas(): HTMLCanvasElement | undefined {
-    return this._imageData?.canvas;
+    return this.renderImage?.canvas;
   }
 
   async fetchImageData() {
-    this._imageData = await composeImage([this.image], {
+    this.renderImage = await composeImage([this.image], {
+      reuse: this.renderImage,
+      clear: true,
       width: this.range * 2,
       height: this.range * 2,
     });
-    return this._imageData;
+    return this.renderImage;
   }
 
   render(context: CanvasRenderingContext2D, scale = 1) {
