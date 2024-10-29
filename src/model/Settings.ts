@@ -52,6 +52,8 @@ class Settings {
 
   currentTrack = "Basic";
 
+  autoAdvance = false;
+
   /// Car configuration
 
   carWidth = 20; // px

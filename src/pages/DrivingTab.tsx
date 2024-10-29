@@ -1,9 +1,11 @@
+import * as Icons from "ionicons/icons";
 import { useEffect, useRef } from "react";
 
 import {
   IonButton,
   IonCol,
   IonGrid,
+  IonIcon,
   IonItem,
   IonLabel,
   IonRow,
@@ -67,7 +69,29 @@ export default function DrivingTab() {
               expand="block"
               onClick={() => Car.nextGeneration(track, true)}
             >
-              Next Generation
+              <IonIcon icon={Icons.playSkipForwardOutline} />
+            </IonButton>
+            <IonButton
+              slot="end"
+              expand="block"
+              color={settings.autoAdvance ? "primary" : "medium"}
+              onClick={() =>
+                settings.set({ autoAdvance: !settings.autoAdvance })
+              }
+            >
+              <IonIcon icon={Icons.repeatOutline} />
+            </IonButton>
+            <IonButton
+              slot="end"
+              expand="block"
+              color={settings.globalPaused ? "medium" : "primary"}
+              onClick={() =>
+                settings.set({ globalPaused: !settings.globalPaused })
+              }
+            >
+              <IonIcon
+                icon={settings.globalPaused ? Icons.play : Icons.pause}
+              />
             </IonButton>
           </IonItem>
           <IonItem>

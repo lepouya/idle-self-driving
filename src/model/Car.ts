@@ -538,6 +538,16 @@ module Car {
 
   export function tickAll(dt: number) {
     Object.values(registry.get()).forEach((car) => car.tick(dt));
+
+    if (Settings.singleton.autoAdvance) {
+      const cars = Object.values(registry.get());
+      if (cars.every((car) => car.collided || car.name === "Manual")) {
+        const track = cars[0]?.track;
+        if (track) {
+          nextGeneration(track, false);
+        }
+      }
+    }
   }
 
   export async function nextGeneration(track: Track, force = false) {
