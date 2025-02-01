@@ -113,8 +113,7 @@ export default function DrivingTab() {
           <IonItem>
             <IonSelect
               label="Track Selection"
-              labelPlacement="stacked"
-              interface="popover"
+              interface="alert"
               value={settings.currentTrack}
               onIonChange={(e) => {
                 settings.set({ currentTrack: e.detail.value });
