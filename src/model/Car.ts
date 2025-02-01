@@ -142,7 +142,9 @@ class Car {
       laps: this.laps,
       success: !this.collided && this.laps >= 3 && this.startTime > 0,
       score:
-        distance - time + (this.laps + Math.sign(this.startTime)) ** 2 * 10,
+        this.startTime > 0
+          ? Math.max(0, distance - time) + (this.laps + 1) ** 2 * 10
+          : 0,
     };
   }
 
