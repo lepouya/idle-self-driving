@@ -7,7 +7,9 @@ import Sensor from "./Sensor";
 import Settings from "./Settings";
 import Track from "./Track";
 
-class Car {
+export default class Car {
+  static registry = genRegistry<Record<string, Car>>({});
+
   private renderImage: ComposedImage | undefined = undefined;
   private sensorImage: ComposedImage | undefined = undefined;
 
@@ -58,6 +60,11 @@ class Car {
     if (name && autoRegister) {
       Car.registry.get()[name] = this;
     }
+  }
+
+  static useHook() {
+    const cars = Car.registry.useHook();
+    return Object.values(cars);
   }
 
   get mask(): string {
@@ -133,7 +140,7 @@ class Car {
     return this.renderImage;
   }
 
-  get score(): Settings.Score {
+  get score(): Score {
     const now = Date.now();
     const distance = this.odometer / Math.max(this.width, this.height);
     const time = ((this.endTime || now) - (this.startTime || now)) / 1000;
@@ -196,6 +203,8 @@ class Car {
   }
 
   endRun(collided = true) {
+    const settings = Settings.singleton;
+
     this.endTime = Date.now();
     if (!this.startTime) {
       this.startTime = this.endTime;
@@ -204,14 +213,22 @@ class Car {
     this.collided = collided;
     this.fetchImageData();
 
+    if (!this.track || !this.net || this.score.score <= 0) {
+      return;
+    }
+
     // New SOTA!
-    const settings = Settings.singleton;
-    if (
-      this.track &&
-      this.net &&
+    const highScore = Math.max(
+      ...Object.values(settings.sotaScore).map((s) => (s ? s.score : 0)),
+    );
+    if (this.score.score > (highScore ?? 0)) {
+      settings.sotaNet = this.net.config;
+      settings.sotaScore = { [this.track.name]: this.score };
+      console.log(this.name, "set a new all-time highscore");
+    } else if (
       this.score.score > (settings.sotaScore[this.track.name]?.score ?? 0)
     ) {
-      settings.sotaNet = this.net.config;
+      console.log(this.name, "set a new highscore on track", this.track.name);
       settings.sotaScore = { [this.track.name]: this.score };
     }
   }
@@ -497,7 +514,8 @@ class Car {
           this.name,
           "has completed lap",
           this.laps,
-          this.score.score,
+          "with score",
+          ~~this.score.score,
         );
       }
     } else if (!lapping && this.inCrossing) {
@@ -536,24 +554,22 @@ class Car {
       this.steering = 0;
     }
   }
-}
 
-module Car {
-  export const registry = genRegistry<Record<string, Car>>({});
+  /////////////
 
-  export function renderAll(context: CanvasRenderingContext2D) {
-    const cars = Object.values(registry.get()).sort(
+  static renderAll(context: CanvasRenderingContext2D) {
+    const cars = Object.values(Car.registry.get()).sort(
       (a, b) => b.score.score - a.score.score,
     );
 
     cars.forEach((car, idx) => car.render(context, idx === 0));
   }
 
-  export function tickAll(dt: number) {
-    Object.values(registry.get()).forEach((car) => car.tick(dt));
+  static tickAll(dt: number) {
+    Object.values(Car.registry.get()).forEach((car) => car.tick(dt));
 
     if (Settings.singleton.autoAdvance) {
-      const cars = Object.values(registry.get());
+      const cars = Object.values(Car.registry.get());
       const resetAfter = Date.now() - 1000;
       if (
         cars.every(
@@ -562,15 +578,15 @@ module Car {
       ) {
         const track = cars[0]?.track;
         if (track) {
-          nextGeneration(track, false);
+          Car.nextGeneration(track, false);
         }
       }
     }
   }
 
-  export async function nextGeneration(track: Track, force = false) {
+  static async nextGeneration(track: Track, force = false) {
     const settings = Settings.singleton;
-    const cars = registry.get();
+    const cars = Car.registry.get();
 
     // Replace the manual driver if needed
     if (
@@ -634,20 +650,21 @@ module Car {
     });
     await Promise.all(Object.values(cars).map((car) => car.fetchImageData()));
     Settings.save();
-    registry.signal();
-  }
-
-  function calcStdDev(score?: Settings.Score): number {
-    if (!score || !score.score || !score.distance || !score.time) {
-      return 1;
-    }
-    return clamp(Math.sqrt(10 / score.score), 0.1, 1);
+    Car.registry.signal();
   }
 }
 
-export function useCars() {
-  const cars = Car.registry.useHook();
-  return Object.values(cars);
+export interface Score {
+  distance: number;
+  time: number;
+  laps: number;
+  success: boolean;
+  score: number;
 }
 
-export default Car;
+function calcStdDev(score?: Score): number {
+  if (!score || !score.score || !score.distance || !score.time) {
+    return 1;
+  }
+  return clamp(Math.sqrt(10 / score.score), 0.1, 1);
+}

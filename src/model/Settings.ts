@@ -1,21 +1,23 @@
 import clamp from "../utils/clamp";
 import database from "../utils/database";
 import genRegistry from "../utils/registry";
-import Car from "./Car";
+import Car, { Score } from "./Car";
 import Network from "./Network";
 
-class Settings {
+export default class Settings {
   static singleton = new Settings();
+  static registry = genRegistry(() => Settings.singleton);
+
   constructor(settings?: Partial<Settings> | string) {
-    this.load(settings);
     Settings.singleton = this;
+    this.load(settings);
   }
 
   /// Simulation parameters
 
   ticksPerSec = 100;
   rendersPerSec = 30;
-  saveFrequencySecs = 60;
+  saveFrequencySecs = 10;
 
   minUpdateSecs = 0.01;
   maxUpdateSecs = 0.25;
@@ -90,7 +92,7 @@ class Settings {
     trackRandom: 2,
   };
 
-  sotaScore: Record<string, Settings.Score> = {}; // Track name => score
+  sotaScore: Record<string, Score> = {}; // Track name => score
   sotaNet = Network.init(
     this.sensors.length + 4, // in: sensors + [accel, steer, speed, angle]
     2, // out: [accel, steer]
@@ -99,9 +101,68 @@ class Settings {
 
   /////////////
 
-  isDebug(): boolean {
-    return window.location.search.toLowerCase().includes("debug");
+  static isDebug(): boolean {
+    return window.location.href.toLowerCase().includes("debug");
   }
+
+  static useHook() {
+    return Settings.registry.useHook();
+  }
+
+  static set(state: Partial<Settings>) {
+    return Settings.singleton.set(state);
+  }
+
+  static tick(now?: number, source?: string) {
+    return Settings.singleton.tick(
+      now,
+      source,
+      Settings.save,
+      Settings.registry.signal,
+    );
+  }
+
+  static async save() {
+    Settings.singleton.tick(undefined, "save");
+    const res = await database.write("Settings", Settings.singleton.save());
+    Settings.registry.signal();
+    return res;
+  }
+
+  static async load() {
+    Settings.singleton.load(await database.read("Settings"));
+    Settings.singleton.tick(undefined, "load");
+    Settings.registry.signal();
+    return Settings.singleton;
+  }
+
+  static reset(settings?: Partial<Settings>) {
+    Settings.singleton = new Settings(settings);
+    Settings.registry.signal();
+    return Settings.singleton;
+  }
+
+  /////////////
+
+  private timer: NodeJS.Timeout | null = null;
+
+  static addTickTimer() {
+    Settings.removeTickTimer();
+    const newTimerId = setInterval(
+      () => Settings.tick(undefined, "tick"),
+      1000.0 / Settings.singleton.ticksPerSec,
+    );
+    Settings.singleton.timer = newTimerId;
+  }
+
+  static removeTickTimer() {
+    if (Settings.singleton.timer) {
+      clearInterval(Settings.singleton.timer);
+    }
+    Settings.singleton.timer = null;
+  }
+
+  /////////////
 
   set(settings: Partial<Settings>): this {
     let k: keyof Settings;
@@ -208,60 +269,3 @@ class Settings {
     return this.execution[source].lastResult;
   }
 }
-
-module Settings {
-  export interface Score {
-    distance: number;
-    time: number;
-    laps: number;
-    success: boolean;
-    score: number;
-  }
-
-  export const registry = genRegistry(() => Settings.singleton);
-
-  export async function save() {
-    Settings.singleton.tick(undefined, "save");
-    const res = await database.write("Settings", Settings.singleton.save());
-    registry.signal();
-    return res;
-  }
-
-  export async function load() {
-    Settings.singleton.load(await database.read("Settings"));
-    Settings.singleton.tick(undefined, "load");
-    registry.signal();
-    return Settings.singleton;
-  }
-
-  export function reset(settings?: Partial<Settings>) {
-    Settings.singleton = new Settings(settings);
-    registry.signal();
-    return Settings.singleton;
-  }
-
-  export function tick(now?: number, source?: string) {
-    return Settings.singleton.tick(now, source, save, registry.signal);
-  }
-
-  const timers: NodeJS.Timeout[] = [];
-  export function addTickTimer() {
-    removeTickTimer();
-    const newTimerId = setInterval(
-      () => tick(undefined, "tick"),
-      1000.0 / Settings.singleton.ticksPerSec,
-    );
-    timers.push(newTimerId);
-  }
-
-  export function removeTickTimer() {
-    timers.forEach((t) => clearInterval(t));
-    timers.length = 0;
-  }
-}
-
-export function useSettings() {
-  return Settings.registry.useHook();
-}
-
-export default Settings;

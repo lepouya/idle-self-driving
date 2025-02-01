@@ -15,16 +15,16 @@ import {
 } from "@ionic/react";
 
 import TabApp from "../components/TabApp";
-import Car, { useCars } from "../model/Car";
-import { useSettings } from "../model/Settings";
-import { useTracks } from "../model/Track";
+import Car from "../model/Car";
+import Settings from "../model/Settings";
+import Track from "../model/Track";
 import Format from "../utils/format";
 
 export default function DrivingTab() {
-  const settings = useSettings();
+  const settings = Settings.useHook();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const tracks = useTracks();
-  const cars = useCars();
+  const tracks = Track.useHook();
+  const cars = Car.useHook();
 
   const track = tracks[settings.currentTrack];
 

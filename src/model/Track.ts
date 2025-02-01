@@ -3,7 +3,9 @@ import genRegistry from "../utils/registry";
 import Sensor from "./Sensor";
 import Settings from "./Settings";
 
-abstract class Track {
+export default abstract class Track {
+  static registry = genRegistry<Record<string, Track>>({});
+
   private renderImage: ComposedImage | undefined = undefined;
 
   readonly width = Settings.singleton.trackWidth;
@@ -156,12 +158,8 @@ abstract class Track {
 
     context.drawImage(this.canvas, 0, 0);
   }
-}
 
-module Track {
-  export const registry = genRegistry<Record<string, Track>>({});
-
-  export async function loadAll() {
+  static async loadAll() {
     const tracks = [
       new BasicTrack("Basic"),
       new AdvancedTrack("Advanced"),
@@ -169,18 +167,16 @@ module Track {
       new CurvyTrack("Curvy"),
     ];
     tracks.forEach((track) => {
-      registry.get()[track.name] = track;
+      Track.registry.get()[track.name] = track;
     });
     await Promise.all(tracks.map((track) => track.fetchImageData()));
-    registry.signal();
+    Track.registry.signal();
+  }
+
+  static useHook() {
+    return Track.registry.useHook();
   }
 }
-
-export function useTracks() {
-  return Track.registry.useHook();
-}
-
-export default Track;
 
 class BasicTrack extends Track {
   get path(): string[] {

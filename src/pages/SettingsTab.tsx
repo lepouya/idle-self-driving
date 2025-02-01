@@ -17,7 +17,7 @@ import {
 } from "@ionic/react";
 
 import TabApp from "../components/TabApp";
-import Settings, { useSettings } from "../model/Settings";
+import Settings from "../model/Settings";
 import database from "../utils/database";
 import { decode, encode } from "../utils/encoding";
 import Format from "../utils/format";
@@ -44,7 +44,7 @@ SettingsTab.init = () => {
 };
 
 function AppDataPanel() {
-  const settings = useSettings();
+  const settings = Settings.useHook();
   const [textContents, setTextContents] = useState("");
 
   return (
@@ -117,7 +117,7 @@ function AppDataPanel() {
           <IonCol size="6">
             <IonButton
               onClick={() =>
-                setTextContents(encode(settings.save(), settings.isDebug()))
+                setTextContents(encode(settings.save(), Settings.isDebug()))
               }
               expand="block"
             >
@@ -142,7 +142,7 @@ function AppDataPanel() {
 }
 
 function AdvancedPanel() {
-  const settings = useSettings();
+  const settings = Settings.useHook();
   const [tps, setTps] = useState(settings.ticksPerSec);
   const [fps, setFps] = useState(settings.rendersPerSec);
   const [sps, setSps] = useState(settings.saveFrequencySecs);
@@ -187,7 +187,7 @@ function AdvancedPanel() {
           <IonCol size="6">
             <IonRange
               min={6}
-              max={100}
+              max={200}
               step={1}
               pin={true}
               pinFormatter={(value) => `${Math.floor(1000.0 / value)}ms`}
@@ -242,16 +242,16 @@ function AdvancedPanel() {
               step={1}
               pin={true}
               pinFormatter={(value) =>
-                Format.time(1000 * (600 / value), {
+                Format.time(1000 * (300 / value), {
                   ago: "",
                   len: "tiny",
                 }).replace(":", "m:") + "s"
               }
-              value={600 / sps}
-              onIonInput={(e) => setSps(600 / (e.detail.value as number))}
+              value={300 / sps}
+              onIonInput={(e) => setSps(300 / (e.detail.value as number))}
               onIonChange={(e) => {
                 settings.set({
-                  saveFrequencySecs: 600 / (e.detail.value as number),
+                  saveFrequencySecs: 300 / (e.detail.value as number),
                 });
               }}
               className="ion-no-padding"
@@ -321,10 +321,10 @@ function ResetPanel() {
 }
 
 function DebugPanel() {
-  const settings = useSettings();
+  const settings = Settings.useHook();
 
   return (
-    settings.isDebug() && (
+    Settings.isDebug() && (
       <IonCard>
         <IonCardHeader>
           <IonCardTitle>
@@ -361,7 +361,7 @@ function saveFile() {
     .trim()
     .replace(/\D/g, "-");
   const fileName = `${name}-v${version}-${date}`;
-  const fileData = encode(settings.save(), settings.isDebug());
+  const fileData = encode(settings.save(), Settings.isDebug());
   const contents = new Blob([fileData], { type: "text/plain" });
 
   const url = URL.createObjectURL(contents);

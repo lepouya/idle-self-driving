@@ -1,8 +1,8 @@
 import clamp from "../utils/clamp";
 import gaussian from "../utils/gaussian";
 
-class Network {
-  constructor(public readonly config: Network.Configuration) {
+export default class Network {
+  constructor(public readonly config: NetworkConfig) {
     this.validate();
     this.regularize();
   }
@@ -119,14 +119,10 @@ class Network {
   }
 }
 
-module Network {
-  export interface Configuration {
-    input: number;
-    hidden: number[];
-    output: number;
+export interface NetworkConfig {
+  input: number;
+  hidden: number[];
+  output: number;
 
-    weights: number[][][]; // [layer][neuron][input]
-  }
+  weights: number[][][]; // [layer][neuron][input]
 }
-
-export default Network;

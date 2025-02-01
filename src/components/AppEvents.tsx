@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import Sensor from "../model/Sensor";
-import Settings, { useSettings } from "../model/Settings";
+import Settings from "../model/Settings";
 import Track from "../model/Track";
 import DrivingTab from "../pages/DrivingTab";
 import HelpPage from "../pages/HelpPage";
@@ -10,7 +10,7 @@ import database from "../utils/database";
 import shortcut from "../utils/shortcut";
 
 export default function AppEvents() {
-  const settings = useSettings();
+  const settings = Settings.useHook();
 
   useEffect(() => {
     shortcut.addEventListeners();

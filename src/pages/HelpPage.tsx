@@ -13,11 +13,11 @@ import {
 
 import TabApp from "../components/TabApp";
 import Car from "../model/Car";
-import { useSettings } from "../model/Settings";
+import Settings from "../model/Settings";
 import Track from "../model/Track";
 
 export default function HelpPage() {
-  const settings = useSettings();
+  const settings = Settings.useHook();
 
   if (settings.helpDismissed) {
     return null;
@@ -38,7 +38,7 @@ export default function HelpPage() {
 }
 
 function HelpPopup() {
-  const settings = useSettings();
+  const settings = Settings.useHook();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [track, setTrack] = useState<Track | undefined>();
   const [car, setCar] = useState<Car | undefined>();

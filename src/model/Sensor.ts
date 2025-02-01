@@ -3,15 +3,20 @@ import composeImage, { ComposedImage } from "../utils/composeImage";
 import genRegistry from "../utils/registry";
 import Settings from "./Settings";
 
-class Sensor {
-  private renderImage: ComposedImage | undefined = undefined;
+export default class Sensor {
+  static registry = genRegistry<Sensor[]>([]);
 
+  private renderImage: ComposedImage | undefined = undefined;
   private path: string;
 
   constructor(public readonly range: number, public readonly angle: number) {
     const dx = range * Math.cos(angle);
     const dy = range * Math.sin(angle);
     this.path = `M ${~~range} ${~~range} l ${~~dx} ${~~dy}`;
+  }
+
+  static useHook() {
+    return Sensor.registry.useHook();
   }
 
   get maskColor() {
@@ -106,59 +111,50 @@ class Sensor {
 
     return clamp(dist / this.range, 0, 1);
   }
-}
 
-module Sensor {
-  export const available = 0x000000;
-  export const offTrack = 0x800000;
-  export const lapLine = 0x008000;
-  export const vehicle = 0x7f7f7f;
-  export const radar = 0x000080;
+  /////////////
 
-  export const color = {
-    available: toSvgColor(available),
-    offTrack: toSvgColor(offTrack),
-    lapLine: toSvgColor(lapLine),
-    vehicle: toSvgColor(vehicle),
-    radar: toSvgColor(radar),
+  static readonly available = 0x000000;
+  static readonly offTrack = 0x800000;
+  static readonly lapLine = 0x008000;
+  static readonly vehicle = 0x7f7f7f;
+  static readonly radar = 0x000080;
+
+  static readonly color = {
+    available: toSvgColor(Sensor.available),
+    offTrack: toSvgColor(Sensor.offTrack),
+    lapLine: toSvgColor(Sensor.lapLine),
+    vehicle: toSvgColor(Sensor.vehicle),
+    radar: toSvgColor(Sensor.radar),
   };
 
-  function toSvgColor(col: number) {
-    return "#" + col.toString(16).padStart(6, "0");
-  }
-
-  function toCanvasColor(col: number) {
-    // HTML colors are RGB, but canvas data is ABGR
-    return ((col & 0xff0000) >> 16) | ((col & 0xff) << 16) | (col & 0xff00);
-  }
-
-  export function check(argb: number, ...sensorColors: number[]) {
+  static check(argb: number, ...sensorColors: number[]) {
     const color = toCanvasColor(
       sensorColors.reduce((acc, color) => acc | color, 0),
     );
     return (argb & color) === color;
   }
 
-  export const registry = genRegistry<Sensor[]>([]);
-
-  export async function loadAll() {
+  static async loadAll() {
     const sensors = Settings.singleton.sensors.map(
       ({ range, angle }) => new Sensor(range, angle),
     );
 
-    sensors.forEach((sensor) => registry.get().push(sensor));
+    sensors.forEach((sensor) => Sensor.registry.get().push(sensor));
     await Promise.all(sensors.map((sensor) => sensor.fetchImageData()));
-    registry.signal();
+    Sensor.registry.signal();
   }
 
-  export function readAll(
+  static readAll(
     mask: ComposedImage,
     cx: number,
     cy: number,
     ca: number,
   ): number[] {
     // Get the relevant portion of the mask as a buffer
-    const radius = ~~Math.max(...registry.get().map((sensor) => sensor.range));
+    const radius = ~~Math.max(
+      ...Sensor.registry.get().map((sensor) => sensor.range),
+    );
     const { buffer, startX, startY, width, height } = mask.getPixels(
       ~~cx - radius,
       ~~cy - radius,
@@ -166,7 +162,7 @@ module Sensor {
       radius * 2,
     );
 
-    return registry
+    return Sensor.registry
       .get()
       .map((sensor) =>
         sensor.read(
@@ -181,9 +177,11 @@ module Sensor {
   }
 }
 
-export function useSensors() {
-  const sensors = Sensor.registry.useHook();
-  return sensors;
+function toSvgColor(col: number) {
+  return "#" + col.toString(16).padStart(6, "0");
 }
 
-export default Sensor;
+function toCanvasColor(col: number) {
+  // HTML colors are RGB, but canvas data is ABGR
+  return ((col & 0xff0000) >> 16) | ((col & 0xff) << 16) | (col & 0xff00);
+}
