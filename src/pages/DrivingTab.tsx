@@ -166,52 +166,6 @@ export default function DrivingTab() {
           </IonItem>
         </IonCol>
       </IonRow>
-      {settings.isDebug() && (
-        <>
-          (
-          <IonRow>
-            <IonCol>
-              <IonItem>
-                <IonLabel>Active Cars:</IonLabel>
-              </IonItem>
-            </IonCol>
-          </IonRow>
-          <IonRow>
-            <IonCol>
-              {cars.map(
-                (car, idx) =>
-                  !car.collided && (
-                    <IonItem key={`car-${idx}`}>
-                      <IonLabel>
-                        <pre>{JSON.stringify(car.score, null, 2)}</pre>
-                        <pre>
-                          {JSON.stringify(
-                            car,
-                            (_, value) => {
-                              if (
-                                typeof value === "object" &&
-                                value !== null &&
-                                !Array.isArray(value) &&
-                                Object.getPrototypeOf(value) !==
-                                  Object.prototype &&
-                                !(value instanceof Car)
-                              ) {
-                                return "[Object]";
-                              }
-                              return value;
-                            },
-                            2,
-                          )}
-                        </pre>
-                      </IonLabel>
-                    </IonItem>
-                  ),
-              )}
-            </IonCol>
-          </IonRow>
-          )
-        </>
-      )}
     </IonGrid>
   );
 }

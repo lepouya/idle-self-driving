@@ -25,5 +25,5 @@ Playing with this idea I have for a self-training driving system.
 - ~~Auto run multiple instances at once~~
 - ~~Performance improvement~~
 - ~~Auto advancing and pausing~~
+- ~~Help message and guide~~
 - Customization screen for sensors and network
-- Help message and guide

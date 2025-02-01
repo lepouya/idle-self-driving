@@ -74,8 +74,12 @@ class Sensor {
       return;
     }
 
-    const r = ~~(this.range * scale);
-    context.drawImage(this.canvas, -r, -r, r * 2, r * 2);
+    const all = ~~this.range;
+    const pos = ~~(this.range * scale);
+    context.globalCompositeOperation = "lighter";
+    context.drawImage(this.canvas, -all, -all, all * 2, all * 2);
+    context.globalCompositeOperation = "source-over";
+    context.drawImage(this.canvas, -pos, -pos, pos * 2, pos * 2);
   }
 
   read(

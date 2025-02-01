@@ -45,6 +45,8 @@ class Settings {
     }
   > = {};
 
+  helpDismissed?: boolean;
+
   /// Track configuration
 
   trackWidth = 800; // px

@@ -1,12 +1,14 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Redirect, Route } from "react-router-dom";
 
 import {
+  IonButton,
   IonChip,
   IonContent,
   IonHeader,
   IonLabel,
   IonPage,
+  IonPopover,
   IonRouterOutlet,
   IonTabBar,
   IonTabButton,
@@ -16,6 +18,8 @@ import {
 } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 
+import Settings from "../model/Settings";
+import HelpPage from "../pages/HelpPage";
 import genRegistry from "../utils/registry";
 import Icon from "./Icon";
 
@@ -32,6 +36,13 @@ type TabProps = {
 
 export default function TabApp() {
   const tabs = TabApp.useTabs();
+  const settings = Settings.singleton;
+  const [showHelp, setShowHelp] = useState(!settings.helpDismissed);
+  const urlQuery = window.location.search || "";
+
+  useEffect(() => {
+    settings.set({ helpDismissed: !showHelp });
+  }, [showHelp, setShowHelp]);
 
   return (
     <IonReactRouter>
@@ -64,7 +75,22 @@ export default function TabApp() {
                     </IonChip>
                   </IonToolbar>
                 </IonHeader>
-                <IonContent>{tab.content}</IonContent>
+                <IonContent id="tab-page">{tab.content}</IonContent>
+                <IonPopover
+                  trigger={showHelp ? "tab-page" : undefined}
+                  isOpen={showHelp}
+                  showBackdrop={true}
+                  side="start"
+                  alignment="start"
+                  onDidDismiss={() => setShowHelp(false)}
+                >
+                  <IonContent class="ion-padding">
+                    <HelpPage />
+                    <IonButton onClick={() => setShowHelp(false)}>
+                      Close
+                    </IonButton>
+                  </IonContent>
+                </IonPopover>
               </IonPage>
             </Route>
           ))}
@@ -72,7 +98,7 @@ export default function TabApp() {
             .filter((tab) => !!tab.from)
             .map((tab) => (
               <Route exact path={tab.from} key={`default-tab-${tab.path}`}>
-                <Redirect to={`/${tab.path}`} />
+                <Redirect to={`/${tab.path}${urlQuery}`} />
               </Route>
             ))}
         </IonRouterOutlet>
@@ -82,7 +108,7 @@ export default function TabApp() {
               (tab.icon || tab.label) && (
                 <IonTabButton
                   tab={tab.path}
-                  href={`/${tab.path}`}
+                  href={`/${tab.path}${urlQuery}`}
                   key={`tab-button-${tab.path}`}
                 >
                   {tab.icon && <Icon aria-hidden="true" icon={tab.icon} />}

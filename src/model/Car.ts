@@ -45,6 +45,7 @@ class Car {
     public readonly name: string,
     public color = "",
     public fudgeFactor = 0.5, // 0-1
+    autoRegister = true,
   ) {
     if (!color) {
       const rgb = [32, 64, 128].map((c) =>
@@ -54,7 +55,7 @@ class Car {
         "#" + rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
     }
 
-    if (name) {
+    if (name && autoRegister) {
       Car.registry.get()[name] = this;
     }
   }
@@ -385,7 +386,7 @@ class Car {
     }
 
     this.sensorsReady = false;
-    composeImage([], {
+    return composeImage([], {
       width: this.track!.width,
       height: this.track!.height,
       reuse: this.sensorImage,

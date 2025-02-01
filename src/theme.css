@@ -4,3 +4,8 @@
   max-width: min(80rem, 100%);
   margin: auto;
 }
+
+ion-popover {
+  --backdrop-opacity: 0.75;
+  --width: min(70rem, 90%);
+}
