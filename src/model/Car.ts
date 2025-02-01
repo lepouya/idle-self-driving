@@ -253,17 +253,16 @@ class Car {
       return;
     }
 
-    // Manual controls
     if (this.name === "Manual") {
       this.manualControl();
     } else {
       const score = this.score;
       // Lost cause
-      if (
-        score.score < -10 ||
-        (this.totalTicks > 3 && score.laps === 0 && score.score <= score.time)
-      ) {
+      if (score.score < -10 || (this.totalTicks > 3 && score.score <= 0)) {
         console.log(this.name, "doesn't seem to be going anywhere");
+        return this.endRun();
+      } else if (this.totalTicks > 3 && score.score <= score.time / 2) {
+        console.log(this.name, "seems to be going too slow");
         return this.endRun();
       }
       // Successful run
@@ -486,14 +485,17 @@ class Car {
       if (!this.startTime) {
         this.startTime = Date.now();
       } else {
-        if (this.odometer < this.width + this.height) {
+        if (
+          this.odometer <
+          this.width + this.height + this.track!.roadThickness
+        ) {
           console.log(this.name, "didn't complete a full lap");
           return true;
         }
         this.laps++;
         console.log(
           this.name,
-          "has completeted lap",
+          "has completed lap",
           this.laps,
           this.score.score,
         );
@@ -552,7 +554,12 @@ module Car {
 
     if (Settings.singleton.autoAdvance) {
       const cars = Object.values(registry.get());
-      if (cars.every((car) => car.collided || car.name === "Manual")) {
+      const resetAfter = Date.now() - 1000;
+      if (
+        cars.every(
+          (car) => car.collided && car.laps < 3 && car.endTime < resetAfter,
+        )
+      ) {
         const track = cars[0]?.track;
         if (track) {
           nextGeneration(track, false);
