@@ -11,13 +11,12 @@ import {
   IonPopover,
   IonRouterOutlet,
   IonTabBar,
-  IonTabButton,
-  IonTabs,
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 
+import { IonTabButton, IonTabs } from "../ionic-fixes";
 import Settings from "../model/Settings";
 import HelpPage from "../pages/HelpPage";
 import genRegistry from "../utils/registry";

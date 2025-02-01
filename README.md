@@ -27,3 +27,9 @@ Playing with this idea I have for a self-training driving system.
 - ~~Auto advancing and pausing~~
 - ~~Help message and guide~~
 - Customization screen for sensors and network
+
+## Bugs
+
+- tab router is expecting pages to be at root level
+- game rest goes back to main site
+- debug flag is not carried through tab changes

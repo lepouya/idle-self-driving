@@ -18,10 +18,11 @@ import "./theme.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { IonApp, setupIonicReact } from "@ionic/react";
+import { setupIonicReact } from "@ionic/react";
 
 import AppEvents from "./components/AppEvents";
 import TabApp from "./components/TabApp";
+import { IonApp } from "./ionic-fixes";
 
 setupIonicReact();
 

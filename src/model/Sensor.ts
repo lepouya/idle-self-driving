@@ -178,28 +178,6 @@ module Sensor {
           ca,
         ),
       );
-
-    // const readings = sensors.map(() => 0);
-    // for (let i = 0; i < sensors.length; i++) {
-    //   const sensor = sensors[i];
-    //   const dx = Math.cos(sensor.angle + ca);
-    //   const dy = Math.sin(sensor.angle + ca);
-
-    //   let dist = 0;
-    //   for (let r = 0; r < sensor.range; r++) {
-    //     const row = clamp(~~(radius + r * dy - startY), 0, height - 1);
-    //     const col = clamp(~~(radius + r * dx - startX), 0, width - 1);
-    //     if (Sensor.check(buffer[row * width + col], Sensor.offTrack)) {
-    //       break;
-    //     } else {
-    //       dist = r;
-    //     }
-    //   }
-
-    //   readings[i] = clamp(dist / sensor.range, 0, 1);
-    // }
-
-    // return readings;
   }
 }
 
