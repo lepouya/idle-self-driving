@@ -80,7 +80,6 @@ class Settings {
 
   /// Neural network configuration
 
-  stepStdDev = 0.5;
   numIterations = 0;
 
   numSimulations = {
@@ -89,7 +88,7 @@ class Settings {
     trackRandom: 2,
   };
 
-  sotaScore: Record<string, number> = {}; // Track name => score
+  sotaScore: Record<string, Settings.Score> = {}; // Track name => score
   sotaNet = Network.init(
     this.sensors.length + 4, // in: sensors + [accel, steer, speed, angle]
     2, // out: [accel, steer]
@@ -209,6 +208,14 @@ class Settings {
 }
 
 module Settings {
+  export interface Score {
+    distance: number;
+    time: number;
+    laps: number;
+    success: boolean;
+    score: number;
+  }
+
   export const registry = genRegistry(() => Settings.singleton);
 
   export async function save() {

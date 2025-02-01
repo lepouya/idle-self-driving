@@ -133,7 +133,7 @@ export default function DrivingTab() {
               {Format(
                 Math.max(
                   highScore,
-                  settings.sotaScore[settings.currentTrack] || 0,
+                  settings.sotaScore[settings.currentTrack]?.score || 0,
                 ),
                 { prec: 2 },
               )}

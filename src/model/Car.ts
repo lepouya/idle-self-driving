@@ -132,7 +132,7 @@ class Car {
     return this.renderImage;
   }
 
-  get score() {
+  get score(): Settings.Score {
     const now = Date.now();
     const distance = this.odometer / Math.max(this.width, this.height);
     const time = ((this.endTime || now) - (this.startTime || now)) / 1000;
@@ -208,10 +208,10 @@ class Car {
     if (
       this.track &&
       this.net &&
-      this.score.score > (settings.sotaScore[this.track.name] ?? 0)
+      this.score.score > (settings.sotaScore[this.track.name]?.score ?? 0)
     ) {
       settings.sotaNet = this.net.config;
-      settings.sotaScore = { [this.track.name]: this.score.score };
+      settings.sotaScore = { [this.track.name]: this.score };
     }
   }
 
@@ -267,7 +267,6 @@ class Car {
       }
       // Successful run
       if (score.laps >= 3) {
-        console.log(this.name, "has beaten the track !!!");
         return this.endRun();
       }
     }
@@ -491,6 +490,12 @@ class Car {
           return true;
         }
         this.laps++;
+        console.log(
+          this.name,
+          "has completeted lap",
+          this.laps,
+          this.score.score,
+        );
       }
     } else if (!lapping && this.inCrossing) {
       this.inCrossing = false;
@@ -584,28 +589,36 @@ module Car {
     aiCars.forEach((car) => car.endRun());
     aiCars.sort((a, b) => b.score.score - a.score.score);
 
-    // Get the best nets to use for next generation
+    // Get the  nets to use for next generation
     const sotaNet = new Network(settings.sotaNet);
-    const trackBest = aiCars[0]?.net ?? sotaNet;
+    const sotaScore = settings.sotaScore[track.name];
+    const trackNet = aiCars[0]?.net ?? sotaNet;
+    const trackScore = aiCars[0]?.score ?? sotaScore;
+    const randomIdx = Math.floor(Math.random() * aiCars.length);
+    const randomNet = aiCars[randomIdx]?.net ?? trackNet;
+    const randomScore = aiCars[randomIdx]?.score ?? trackScore;
 
     // Create new cars with mutated nets
     for (let i = 0; i < settings.numSimulations.globalBest; i++) {
       const car = new Car(`AI.globalBest.${i}`);
-      car.net = sotaNet.randomStep(i === 0 ? 0 : settings.stepStdDev);
+      car.net = sotaNet.randomStep(i === 0 ? 0 : calcStdDev(sotaScore));
     }
     for (let i = 0; i < settings.numSimulations.trackBest; i++) {
       const car = new Car(`AI.trackBest.${i}`);
-      car.net = trackBest.randomStep(settings.stepStdDev);
+      car.net = trackNet.randomStep(
+        i === 0 && trackScore?.score !== sotaScore?.score
+          ? 0
+          : calcStdDev(trackScore),
+      );
     }
     for (let i = 0; i < settings.numSimulations.trackRandom; i++) {
-      const trackRandom =
-        aiCars[Math.floor(Math.random() * aiCars.length)]?.net ?? trackBest;
       const car = new Car(`AI.trackRandom.${i}`);
-      car.net = trackRandom.randomStep(settings.stepStdDev);
+      car.net = randomNet.randomStep(calcStdDev(randomScore));
     }
 
     // Place all the cars on the track and signal update
     settings.numIterations++;
+    console.log("Starting iteration", settings.numIterations);
     Object.values(cars).forEach((car) => {
       if (!car.track) {
         car.placeOnTrack(track);
@@ -614,6 +627,13 @@ module Car {
     await Promise.all(Object.values(cars).map((car) => car.fetchImageData()));
     Settings.save();
     registry.signal();
+  }
+
+  function calcStdDev(score?: Settings.Score): number {
+    if (!score || !score.score || !score.distance || !score.time) {
+      return 1;
+    }
+    return clamp(Math.sqrt(10 / score.score), 0.1, 1);
   }
 }
 

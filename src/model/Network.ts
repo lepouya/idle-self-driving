@@ -1,8 +1,10 @@
+import clamp from "../utils/clamp";
 import gaussian from "../utils/gaussian";
 
 class Network {
   constructor(public readonly config: Network.Configuration) {
     this.validate();
+    this.regularize();
   }
 
   static init(input: number, output: number, hidden: number[]): Network {
@@ -58,6 +60,18 @@ class Network {
           throw new Error(
             `Invalid col count for weights layer ${i} neuron ${j}`,
           );
+        }
+      }
+    }
+  }
+
+  regularize() {
+    const weights = this.config.weights;
+    const cap = 2; // Bit arbitrary...
+    for (let i = 0; i < weights.length; i++) {
+      for (let j = 0; j < weights[i].length; j++) {
+        for (let k = 0; k < weights[i][j].length; k++) {
+          weights[i][j][k] = clamp(weights[i][j][k], -cap, cap);
         }
       }
     }
