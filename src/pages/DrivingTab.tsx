@@ -67,6 +67,7 @@ export default function DrivingTab() {
             <IonButton
               slot="end"
               expand="block"
+              title="Skip to next iteration"
               onClick={() => Car.nextGeneration(track, true)}
             >
               <IonIcon icon={Icons.playSkipForwardOutline} />
@@ -75,6 +76,7 @@ export default function DrivingTab() {
               slot="end"
               expand="block"
               color={settings.autoAdvance ? "primary" : "medium"}
+              title="Toggle auto-advance at the end of each iteration"
               onClick={() =>
                 settings.set({ autoAdvance: !settings.autoAdvance })
               }
@@ -85,6 +87,7 @@ export default function DrivingTab() {
               slot="end"
               expand="block"
               color={settings.globalPaused ? "medium" : "primary"}
+              title={settings.globalPaused ? "Resume" : "Pause"}
               onClick={() =>
                 settings.set({ globalPaused: !settings.globalPaused })
               }
@@ -164,6 +167,52 @@ export default function DrivingTab() {
           </IonItem>
         </IonCol>
       </IonRow>
+      {settings.isDebug() && (
+        <>
+          (
+          <IonRow>
+            <IonCol>
+              <IonItem>
+                <IonLabel>Active Cars:</IonLabel>
+              </IonItem>
+            </IonCol>
+          </IonRow>
+          <IonRow>
+            <IonCol>
+              {cars.map(
+                (car, idx) =>
+                  !car.collided && (
+                    <IonItem key={`car-${idx}`}>
+                      <IonLabel>
+                        <pre>{JSON.stringify(car.score, null, 2)}</pre>
+                        <pre>
+                          {JSON.stringify(
+                            car,
+                            (_, value) => {
+                              if (
+                                typeof value === "object" &&
+                                value !== null &&
+                                !Array.isArray(value) &&
+                                Object.getPrototypeOf(value) !==
+                                  Object.prototype &&
+                                !(value instanceof Car)
+                              ) {
+                                return "[Object]";
+                              }
+                              return value;
+                            },
+                            2,
+                          )}
+                        </pre>
+                      </IonLabel>
+                    </IonItem>
+                  ),
+              )}
+            </IonCol>
+          </IonRow>
+          )
+        </>
+      )}
     </IonGrid>
   );
 }

@@ -98,6 +98,10 @@ class Settings {
 
   /////////////
 
+  isDebug(): boolean {
+    return window.location.search.toLowerCase().includes("debug");
+  }
+
   set(settings: Partial<Settings>): this {
     let k: keyof Settings;
     for (k in settings) {

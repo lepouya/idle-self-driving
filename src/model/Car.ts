@@ -258,7 +258,10 @@ class Car {
     } else {
       const score = this.score;
       // Lost cause
-      if (score.score < -10 || (this.totalTicks > 10 && score.score === 0)) {
+      if (
+        score.score < -10 ||
+        (this.totalTicks > 3 && score.laps === 0 && score.score <= score.time)
+      ) {
         console.log(this.name, "doesn't seem to be going anywhere");
         return this.endRun();
       }

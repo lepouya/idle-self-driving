@@ -23,14 +23,12 @@ import { decode, encode } from "../utils/encoding";
 import Format from "../utils/format";
 
 export default function SettingsTab() {
-  const debug = isDebug();
-
   return (
     <IonGrid>
       <AppDataPanel />
       <AdvancedPanel />
       <ResetPanel />
-      {debug && <DebugPanel />}
+      <DebugPanel />
     </IonGrid>
   );
 }
@@ -48,7 +46,6 @@ SettingsTab.init = () => {
 function AppDataPanel() {
   const settings = useSettings();
   const [textContents, setTextContents] = useState("");
-  const debug = true; // Useful for now
 
   return (
     <IonCard>
@@ -119,7 +116,9 @@ function AppDataPanel() {
           </IonCol>
           <IonCol size="6">
             <IonButton
-              onClick={() => setTextContents(encode(settings.save(), debug))}
+              onClick={() =>
+                setTextContents(encode(settings.save(), settings.isDebug()))
+              }
               expand="block"
             >
               Export Text
@@ -323,39 +322,37 @@ function ResetPanel() {
 
 function DebugPanel() {
   const settings = useSettings();
-  if (!window.location.search.toLowerCase().includes("debug")) {
-    return null;
-  }
 
   return (
-    <IonCard>
-      <IonCardHeader>
-        <IonCardTitle>
+    settings.isDebug() && (
+      <IonCard>
+        <IonCardHeader>
+          <IonCardTitle>
+            <IonRow>
+              <IonCol size="12" className="ion-text-center">
+                <IonText>Debug Context</IonText>
+              </IonCol>
+            </IonRow>
+          </IonCardTitle>
+        </IonCardHeader>
+        <IonCardContent>
           <IonRow>
-            <IonCol size="12" className="ion-text-center">
-              <IonText>Debug Context</IonText>
+            <IonCol size="12">
+              <IonTextarea
+                autoGrow={true}
+                readonly={true}
+                value={encode(settings, true)}
+              ></IonTextarea>
             </IonCol>
           </IonRow>
-        </IonCardTitle>
-      </IonCardHeader>
-      <IonCardContent>
-        <IonRow>
-          <IonCol size="12">
-            <IonTextarea
-              autoGrow={true}
-              readonly={true}
-              value={encode(settings, true)}
-            ></IonTextarea>
-          </IonCol>
-        </IonRow>
-      </IonCardContent>
-    </IonCard>
+        </IonCardContent>
+      </IonCard>
+    )
   );
 }
 
 function saveFile() {
   const settings = Settings.singleton;
-  const debug = window.location.search.toLowerCase().includes("debug");
   const name = (import.meta.env.NAME as string).replace(/\W/g, "_");
   const version = (import.meta.env.VERSION as string).replace(/\W/g, "_");
   const date = new Date()
@@ -364,7 +361,7 @@ function saveFile() {
     .trim()
     .replace(/\D/g, "-");
   const fileName = `${name}-v${version}-${date}`;
-  const fileData = encode(settings.save(), debug);
+  const fileData = encode(settings.save(), settings.isDebug());
   const contents = new Blob([fileData], { type: "text/plain" });
 
   const url = URL.createObjectURL(contents);
@@ -411,8 +408,4 @@ function reload() {
   const history = createBrowserHistory();
   history.push("/");
   window.location.reload();
-}
-
-function isDebug() {
-  return window.location.search.toLowerCase().includes("debug");
 }

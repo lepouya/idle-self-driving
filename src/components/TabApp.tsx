@@ -44,7 +44,7 @@ export default function TabApp() {
                   <IonToolbar>
                     <IonTitle slot="start">{tab.title || tab.path}</IonTitle>
                     <IonChip slot="end" color="success">
-                      &#169; 2024 &nbsp;
+                      &#169; 2025 &nbsp;
                       <a
                         href="https://github.com/lepouya"
                         target="_blank"
