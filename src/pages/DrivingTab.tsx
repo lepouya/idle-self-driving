@@ -164,6 +164,16 @@ export default function DrivingTab() {
               Manually Controlled Car
             </IonToggle>
           </IonItem>
+          <IonItem>
+            <IonToggle
+              checked={!settings.helpDismissed}
+              onIonChange={(e) => {
+                settings.set({ helpDismissed: !e.detail.checked });
+              }}
+            >
+              Show Help/About Page
+            </IonToggle>
+          </IonItem>
         </IonCol>
       </IonRow>
     </IonGrid>

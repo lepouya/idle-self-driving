@@ -1,14 +1,12 @@
-import { ReactNode, useEffect, useState } from "react";
+import { Fragment, ReactNode } from "react";
 import { Redirect, Route } from "react-router-dom";
 
 import {
-  IonButton,
   IonChip,
   IonContent,
   IonHeader,
   IonLabel,
   IonPage,
-  IonPopover,
   IonRouterOutlet,
   IonTabBar,
   IonTitle,
@@ -17,14 +15,13 @@ import {
 import { IonReactHashRouter } from "@ionic/react-router";
 
 import { IonTabButton, IonTabs } from "../ionic-fixes";
-import Settings from "../model/Settings";
-import HelpPage from "../pages/HelpPage";
 import genRegistry from "../utils/registry";
 import Icon from "./Icon";
 
 type TabProps = {
   path: string;
   content: ReactNode;
+  alwaysMounted?: boolean;
 
   icon?: string;
   label?: string;
@@ -35,13 +32,7 @@ type TabProps = {
 
 export default function TabApp() {
   const tabs = TabApp.useTabs();
-  const settings = Settings.singleton;
-  const [showHelp, setShowHelp] = useState(!settings.helpDismissed);
   const urlQuery = window.location.search || "";
-
-  useEffect(() => {
-    settings.set({ helpDismissed: !showHelp });
-  }, [showHelp, setShowHelp]);
 
   return (
     <IonReactHashRouter>
@@ -74,22 +65,12 @@ export default function TabApp() {
                     </IonChip>
                   </IonToolbar>
                 </IonHeader>
-                <IonContent id="tab-page">{tab.content}</IonContent>
-                <IonPopover
-                  trigger={showHelp ? "tab-page" : undefined}
-                  isOpen={showHelp}
-                  showBackdrop={true}
-                  side="start"
-                  alignment="start"
-                  onDidDismiss={() => setShowHelp(false)}
-                >
-                  <IonContent class="ion-padding">
-                    <HelpPage />
-                    <IonButton onClick={() => setShowHelp(false)}>
-                      Close
-                    </IonButton>
-                  </IonContent>
-                </IonPopover>
+                <IonContent id="tab-contents">{tab.content}</IonContent>
+                {tabs
+                  .filter((t) => t.alwaysMounted && t !== tab)
+                  .map((t) => (
+                    <Fragment key={`page-${t.path}`}>{t.content}</Fragment>
+                  ))}
               </IonPage>
             </Route>
           ))}

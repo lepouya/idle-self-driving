@@ -4,6 +4,7 @@ import Sensor from "../model/Sensor";
 import Settings, { useSettings } from "../model/Settings";
 import Track from "../model/Track";
 import DrivingTab from "../pages/DrivingTab";
+import HelpPage from "../pages/HelpPage";
 import SettingsTab from "../pages/SettingsTab";
 import database from "../utils/database";
 import shortcut from "../utils/shortcut";
@@ -27,8 +28,7 @@ export default function AppEvents() {
 
 AppEvents.initialize = async function () {
   await database.initialize();
-  DrivingTab.init();
-  SettingsTab.init();
   await Settings.load();
+  await Promise.all([DrivingTab.init(), SettingsTab.init(), HelpPage.init()]);
   await Promise.all([Track.loadAll(), Sensor.loadAll()]);
 };

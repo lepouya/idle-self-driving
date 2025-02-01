@@ -33,4 +33,3 @@ Playing with this idea I have for a self-training driving system.
 
 - The text shown on browser buttons is not correct URL
 - debug flag is not carried through tab changes
-- Option to show help page again
