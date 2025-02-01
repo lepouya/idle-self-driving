@@ -30,6 +30,5 @@ Playing with this idea I have for a self-training driving system.
 
 ## Bugs
 
-- tab router is expecting pages to be at root level
-- game rest goes back to main site
+- The text shown on browser buttons is not correct URL
 - debug flag is not carried through tab changes

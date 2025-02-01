@@ -14,7 +14,7 @@ import {
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
-import { IonReactRouter } from "@ionic/react-router";
+import { IonReactHashRouter } from "@ionic/react-router";
 
 import { IonTabButton, IonTabs } from "../ionic-fixes";
 import Settings from "../model/Settings";
@@ -44,7 +44,7 @@ export default function TabApp() {
   }, [showHelp, setShowHelp]);
 
   return (
-    <IonReactRouter>
+    <IonReactHashRouter>
       <IonTabs>
         <IonRouterOutlet>
           {tabs.map((tab) => (
@@ -117,7 +117,7 @@ export default function TabApp() {
           )}
         </IonTabBar>
       </IonTabs>
-    </IonReactRouter>
+    </IonReactHashRouter>
   );
 }
 

@@ -406,6 +406,6 @@ function loadFile() {
 
 function reload() {
   const history = createBrowserHistory();
-  history.push("/");
+  history.push("#/");
   window.location.reload();
 }
