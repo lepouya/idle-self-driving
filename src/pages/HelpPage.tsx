@@ -183,6 +183,10 @@ function HelpPopup() {
                 below. Using import/export features lets you share your models
               </li>
               <li>
+                Click on a car on the race track to see visualization of its
+                sensor inputs and control outputs.
+              </li>
+              <li>
                 The ability to customize # of sensors, their angles, and ranges
                 are there, but I haven't made the UI for it yet. You can still
                 do it by mocking around in the saved settings, or just get the
@@ -195,8 +199,8 @@ function HelpPopup() {
               </li>
               <li>
                 If you want your save files in plain text (json) instead of
-                base64, add "?debug" to the end of the URL and you get a bunch
-                of new feature
+                base64, add "?debug" to the URL and you get a bunch of new
+                feature
               </li>
             </ul>
           </IonCol>

@@ -38,8 +38,8 @@ export default class Car {
 
   // Sensors
   private sensorsReady = true;
-  private sensorReadingTime = 0;
-  private sensorReadings: number[] = [];
+  public sensorReadingTime = 0;
+  public sensorReadings: number[] = [];
   public visualizeSensors = false;
 
   // Network evaluation
@@ -226,27 +226,30 @@ export default class Car {
     if (this.score.score > (highScore ?? 0)) {
       settings.sotaNet = this.net.config;
       settings.sotaScore[this.track.name] = this.score;
-      Car.log(this.name, "set a new all-time highscore");
+      Car.log(this.name, "all-time highscore");
     } else if (
       this.score.score > (settings.sotaScore[this.track.name]?.score ?? 0)
     ) {
-      Car.log(this.name, "set a new highscore on track", this.track.name);
+      Car.log(this.name, "highscore on track");
       settings.sotaScore[this.track.name] = this.score;
     }
   }
 
-  render(context: CanvasRenderingContext2D, highlight = false) {
+  render(
+    context: CanvasRenderingContext2D,
+    highlight = false,
+    visualizeSensors?: boolean,
+  ) {
     if (!this.canvas) {
       return;
     }
 
     context.save();
 
-    context.resetTransform();
     context.translate(~~this.position.x, ~~this.position.y);
     context.rotate(this.angle);
 
-    if (this.visualizeSensors || this.name === "Manual") {
+    if (visualizeSensors || this.visualizeSensors || this.name === "Manual") {
       Sensor.registry
         .get()
         .forEach((sensor, idx) =>
@@ -266,6 +269,16 @@ export default class Car {
     context.restore();
   }
 
+  isClickedOn(x: number, y: number) {
+    const radius = Math.sqrt(this.width ** 2 + this.height ** 2) / 2;
+    return (
+      x > this.position.x - radius &&
+      x < this.position.x + radius &&
+      y > this.position.y - radius &&
+      y < this.position.y + radius
+    );
+  }
+
   tick(dt: number) {
     // Don't move if collided
     if (this.collided || !this.track) {
@@ -278,10 +291,10 @@ export default class Car {
       const score = this.score;
       // Lost cause
       if (score.score < -10 || (this.totalTicks > 3 && score.score <= 0)) {
-        Car.log(this.name, "doesn't seem to be going anywhere");
+        Car.log(this.name, "not going anywhere");
         return this.endRun();
       } else if (this.totalTicks > 3 && score.score <= score.time / 2) {
-        Car.log(this.name, "seems to be going too slow");
+        Car.log(this.name, "going too slow");
         return this.endRun();
       }
       // Successful run
@@ -328,7 +341,7 @@ export default class Car {
       this.position.y <= 0 ||
       this.position.y >= this.track.height
     ) {
-      Car.log(this.name, "went out of bounds");
+      Car.log(this.name, "out of bounds");
       return this.endRun();
     }
 
@@ -352,7 +365,7 @@ export default class Car {
       dists.slice(1).some((d) => d < trackingRadius)
     ) {
       // Went back on the track
-      Car.log(this.name, "went back on the track");
+      Car.log(this.name, "went back on track");
       return this.endRun();
     }
 
@@ -496,7 +509,7 @@ export default class Car {
 
       // Crossing in the wrong direction!
       if (crossAngle > Math.PI / 2) {
-        Car.log(this.name, "crossed the lap line the wrong way");
+        Car.log(this.name, "crossed the wrong way");
         return true;
       }
 
@@ -508,24 +521,18 @@ export default class Car {
           this.odometer <
           this.width + this.height + this.track!.roadThickness
         ) {
-          Car.log(this.name, "didn't complete a full lap");
+          Car.log(this.name, "incomplete lap");
           return true;
         }
         this.laps++;
-        Car.log(
-          this.name,
-          "has completed lap",
-          this.laps,
-          "with score",
-          ~~this.score.score,
-        );
+        Car.log(this.name, "lap", this.laps, "score", ~~this.score.score);
       }
     } else if (!lapping && this.inCrossing) {
       this.inCrossing = false;
 
       // Turned around on the lap line and went the wrong way
       if (crossAngle > Math.PI / 2) {
-        Car.log(this.name, "turned around on the lap line");
+        Car.log(this.name, "turned around");
         return true;
       }
     }
@@ -561,10 +568,10 @@ export default class Car {
 
   static renderAll(context: CanvasRenderingContext2D) {
     const cars = Object.values(Car.registry.get()).sort(
-      (a, b) => b.score.score - a.score.score,
+      (a, b) => a.score.score - b.score.score,
     );
 
-    cars.forEach((car, idx) => car.render(context, idx === 0));
+    cars.forEach((car, idx) => car.render(context, idx === cars.length - 1));
   }
 
   static tickAll(dt: number) {
@@ -672,7 +679,7 @@ export default class Car {
       .join(" ");
     console.log(res);
     Car.events.push(res);
-    while (Car.events.length > 10) {
+    while (Car.events.length > 15) {
       Car.events.shift();
     }
   }

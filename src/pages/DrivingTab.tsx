@@ -1,8 +1,9 @@
 import * as Icons from "ionicons/icons";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   IonButton,
+  IonChip,
   IonCol,
   IonGrid,
   IonIcon,
@@ -15,6 +16,7 @@ import {
   IonToggle,
 } from "@ionic/react";
 
+import PreviewCar from "../components/PreviewCar";
 import TabApp from "../components/TabApp";
 import Car from "../model/Car";
 import Settings from "../model/Settings";
@@ -26,6 +28,7 @@ export default function DrivingTab() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tracks = Track.useHook();
   const cars = Car.useHook();
+  const [selectedCar, setSelectedCar] = useState<Car | undefined>(undefined);
 
   const track = tracks[settings.currentTrack];
 
@@ -48,6 +51,47 @@ export default function DrivingTab() {
       }
     }
   }, [settings.currentTrack, canvasRef.current, settings.lastRender]);
+
+  useEffect(() => {
+    if (!canvasRef.current) {
+      return;
+    }
+
+    const handleClick = (event: MouseEvent) => {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      const orderedCars = Object.values(Car.registry.get()).sort(
+        (a, b) => b.score.score - a.score.score,
+      );
+
+      for (const car of orderedCars) {
+        if (car.isClickedOn(x, y)) {
+          setSelectedCar(car);
+          return;
+        }
+      }
+      setSelectedCar(undefined);
+    };
+
+    const canvas = canvasRef.current;
+    canvas.addEventListener("click", handleClick);
+    return () => {
+      canvas.removeEventListener("click", handleClick);
+    };
+  }, [canvasRef.current, setSelectedCar]);
+
+  useEffect(() => {
+    const prevCarName = selectedCar?.name || "";
+    setSelectedCar(undefined);
+    for (const car of cars) {
+      if (car.name === prevCarName) {
+        setSelectedCar(car);
+        return;
+      }
+    }
+  }, [track, cars[0]]);
 
   const highScore = Math.max(...cars.map((car) => car.score.score)) || 0;
   const activeCars = cars.filter((car) => !car.collided).length;
@@ -100,16 +144,7 @@ export default function DrivingTab() {
           </IonItem>
           <IonItem>
             <IonLabel>Leader Score</IonLabel>
-            <IonLabel slot="end">{Format(highScore, { prec: 2 })}</IonLabel>
-          </IonItem>
-          <IonItem>
-            <IonLabel>Active Cars</IonLabel>
-            <IonLabel slot="end">
-              {activeCars}/{cars.length}
-            </IonLabel>
-          </IonItem>
-          <IonItem>
-            <IonLabel>&nbsp;</IonLabel>
+            <IonChip slot="end">{Format(highScore, { prec: 2 })}</IonChip>
           </IonItem>
           <IonItem>
             <IonSelect
@@ -129,7 +164,7 @@ export default function DrivingTab() {
           </IonItem>
           <IonItem>
             <IonLabel>Best Score on {settings.currentTrack} Track</IonLabel>
-            <IonLabel slot="end">
+            <IonChip slot="end">
               {Format(
                 Math.max(
                   highScore,
@@ -137,22 +172,28 @@ export default function DrivingTab() {
                 ),
                 { prec: 2 },
               )}
-            </IonLabel>
+            </IonChip>
           </IonItem>
           <IonItem>
             <IonLabel>&nbsp;</IonLabel>
           </IonItem>
           <IonItem>
+            <IonLabel>Active Cars</IonLabel>
+            <IonChip slot="end">
+              {activeCars}/{cars.length}
+            </IonChip>
+          </IonItem>
+          <IonItem>
             <IonLabel>Simulation Speed</IonLabel>
-            <IonLabel slot="end">
+            <IonChip slot="end">
               {Format(settings.execution["tick"]?.tps || 0)} tps
-            </IonLabel>
+            </IonChip>
           </IonItem>
           <IonItem>
             <IonLabel>Rendering Speed</IonLabel>
-            <IonLabel slot="end">
+            <IonChip slot="end">
               {Format(settings.execution["tick"]?.fps || 0)} fps
-            </IonLabel>
+            </IonChip>
           </IonItem>
           <IonItem>
             <IonToggle
@@ -175,19 +216,33 @@ export default function DrivingTab() {
               Show Help/About Page
             </IonToggle>
           </IonItem>
+          <IonItem>
+            <IonLabel>&nbsp;</IonLabel>
+          </IonItem>
+          <IonItem>
+            <IonLabel>
+              {selectedCar
+                ? "Selected car:"
+                : "Click on a car to visualize its state"}
+            </IonLabel>
+            {selectedCar && <IonChip slot="end">{selectedCar.name}</IonChip>}
+          </IonItem>
         </IonCol>
       </IonRow>
       <IonRow>
-        <IonCol size="12">
+        <IonCol size="5">
           <IonTextarea
             label="Driving events"
             labelPlacement="floating"
             fill="outline"
             placeholder="Car Events are logged here"
-            rows={10}
+            rows={15}
             value={Car.events.join("\n")}
             readonly={true}
           ></IonTextarea>
+        </IonCol>
+        <IonCol size="7">
+          {selectedCar && <PreviewCar car={selectedCar} track={track} />}
         </IonCol>
       </IonRow>
     </IonGrid>
