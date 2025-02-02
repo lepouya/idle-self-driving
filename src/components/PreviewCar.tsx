@@ -51,7 +51,7 @@ export default function PreviewCar({ car, track }: { car: Car; track: Track }) {
           <IonItem>
             <IonLabel>{car.name}</IonLabel>
             <IonChip slot="end">
-              {car.laps >= 3 ? "Won" : car.collided ? "Inactive" : "Active"}
+              {car.laps >= 3 ? "Finished" : car.collided ? "Crashed" : "Active"}
             </IonChip>
             <IonChip slot="end">{Format(car.odometer, { prec: 0 })}px</IonChip>
             <IonChip slot="end">{Format(score.time, { prec: 1 })}s</IonChip>
@@ -60,7 +60,7 @@ export default function PreviewCar({ car, track }: { car: Car; track: Track }) {
         </IonCol>
         <IonCol size="4">
           <IonItem>
-            <IonLabel>Sensor Readings:</IonLabel>
+            <IonLabel>Sensor Inputs:</IonLabel>
           </IonItem>
           {car.sensorReadings &&
             car.sensorReadings.length == sensors.length &&
@@ -94,6 +94,19 @@ export default function PreviewCar({ car, track }: { car: Car; track: Track }) {
           <IonItem>
             <IonLabel>Steering</IonLabel>
             <IonChip slot="end">{Format(car.steering, { prec: 3 })}</IonChip>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Indirect Controls:</IonLabel>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Speed</IonLabel>
+            <IonChip slot="end">{Format(car.speed, { prec: 1 })} px/s</IonChip>
+          </IonItem>
+          <IonItem>
+            <IonLabel>Heading</IonLabel>
+            <IonChip slot="end">
+              {Format(car.angle * (180 / Math.PI), { prec: 1 })} &deg;
+            </IonChip>
           </IonItem>
         </IonCol>
         <IonCol size="4" class="ion-text-end">
