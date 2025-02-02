@@ -225,13 +225,13 @@ export default class Car {
     );
     if (this.score.score > (highScore ?? 0)) {
       settings.sotaNet = this.net.config;
-      settings.sotaScore = { [this.track.name]: this.score };
+      settings.sotaScore[this.track.name] = this.score;
       Car.log(this.name, "set a new all-time highscore");
     } else if (
       this.score.score > (settings.sotaScore[this.track.name]?.score ?? 0)
     ) {
       Car.log(this.name, "set a new highscore on track", this.track.name);
-      settings.sotaScore = { [this.track.name]: this.score };
+      settings.sotaScore[this.track.name] = this.score;
     }
   }
 
