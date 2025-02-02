@@ -138,7 +138,6 @@ export default class Settings {
 
   static reset(settings?: Partial<Settings>) {
     Settings.singleton = new Settings(settings);
-    Settings.registry.signal();
     return Settings.singleton;
   }
 
