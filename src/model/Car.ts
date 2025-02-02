@@ -1,5 +1,6 @@
 import clamp from "../utils/clamp";
 import composeImage, { ComposedImage } from "../utils/composeImage";
+import { stringify } from "../utils/encoding";
 import genRegistry from "../utils/registry";
 import shortcut from "../utils/shortcut";
 import Network from "./Network";
@@ -9,6 +10,7 @@ import Track from "./Track";
 
 export default class Car {
   static registry = genRegistry<Record<string, Car>>({});
+  static events: string[] = [];
 
   private renderImage: ComposedImage | undefined = undefined;
   private sensorImage: ComposedImage | undefined = undefined;
@@ -224,11 +226,11 @@ export default class Car {
     if (this.score.score > (highScore ?? 0)) {
       settings.sotaNet = this.net.config;
       settings.sotaScore = { [this.track.name]: this.score };
-      console.log(this.name, "set a new all-time highscore");
+      Car.log(this.name, "set a new all-time highscore");
     } else if (
       this.score.score > (settings.sotaScore[this.track.name]?.score ?? 0)
     ) {
-      console.log(this.name, "set a new highscore on track", this.track.name);
+      Car.log(this.name, "set a new highscore on track", this.track.name);
       settings.sotaScore = { [this.track.name]: this.score };
     }
   }
@@ -276,10 +278,10 @@ export default class Car {
       const score = this.score;
       // Lost cause
       if (score.score < -10 || (this.totalTicks > 3 && score.score <= 0)) {
-        console.log(this.name, "doesn't seem to be going anywhere");
+        Car.log(this.name, "doesn't seem to be going anywhere");
         return this.endRun();
       } else if (this.totalTicks > 3 && score.score <= score.time / 2) {
-        console.log(this.name, "seems to be going too slow");
+        Car.log(this.name, "seems to be going too slow");
         return this.endRun();
       }
       // Successful run
@@ -326,7 +328,7 @@ export default class Car {
       this.position.y <= 0 ||
       this.position.y >= this.track.height
     ) {
-      console.log(this.name, "went out of bounds");
+      Car.log(this.name, "went out of bounds");
       return this.endRun();
     }
 
@@ -350,7 +352,7 @@ export default class Car {
       dists.slice(1).some((d) => d < trackingRadius)
     ) {
       // Went back on the track
-      console.log(this.name, "went back on the track");
+      Car.log(this.name, "went back on the track");
       return this.endRun();
     }
 
@@ -494,7 +496,7 @@ export default class Car {
 
       // Crossing in the wrong direction!
       if (crossAngle > Math.PI / 2) {
-        console.log(this.name, "crossed the lap line the wrong way");
+        Car.log(this.name, "crossed the lap line the wrong way");
         return true;
       }
 
@@ -506,11 +508,11 @@ export default class Car {
           this.odometer <
           this.width + this.height + this.track!.roadThickness
         ) {
-          console.log(this.name, "didn't complete a full lap");
+          Car.log(this.name, "didn't complete a full lap");
           return true;
         }
         this.laps++;
-        console.log(
+        Car.log(
           this.name,
           "has completed lap",
           this.laps,
@@ -523,14 +525,14 @@ export default class Car {
 
       // Turned around on the lap line and went the wrong way
       if (crossAngle > Math.PI / 2) {
-        console.log(this.name, "turned around on the lap line");
+        Car.log(this.name, "turned around on the lap line");
         return true;
       }
     }
 
     // Went outside the track
     if (offTrack) {
-      console.log(this.name, "went off track");
+      Car.log(this.name, "went off track");
       return true;
     }
 
@@ -642,7 +644,7 @@ export default class Car {
 
     // Place all the cars on the track and signal update
     settings.numIterations++;
-    console.log("Starting iteration", settings.numIterations);
+    Car.log("Starting iteration", settings.numIterations);
     Object.values(cars).forEach((car) => {
       if (!car.track) {
         car.placeOnTrack(track);
@@ -651,6 +653,28 @@ export default class Car {
     await Promise.all(Object.values(cars).map((car) => car.fetchImageData()));
     Settings.save();
     Car.registry.signal();
+  }
+
+  static log(...args: any[]) {
+    const res = args
+      .map((arg) => {
+        if (!arg) {
+          return null;
+        } else if (typeof arg === "string") {
+          return arg;
+        } else if (typeof arg === "number") {
+          return String(~~arg);
+        } else {
+          return stringify(arg);
+        }
+      })
+      .filter((arg) => !!arg)
+      .join(" ");
+    console.log(res);
+    Car.events.push(res);
+    while (Car.events.length > 10) {
+      Car.events.shift();
+    }
   }
 }
 

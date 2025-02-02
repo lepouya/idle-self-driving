@@ -11,6 +11,7 @@ import {
   IonRow,
   IonSelect,
   IonSelectOption,
+  IonTextarea,
   IonToggle,
 } from "@ionic/react";
 
@@ -174,6 +175,19 @@ export default function DrivingTab() {
               Show Help/About Page
             </IonToggle>
           </IonItem>
+        </IonCol>
+      </IonRow>
+      <IonRow>
+        <IonCol size="12">
+          <IonTextarea
+            label="Driving events"
+            labelPlacement="floating"
+            fill="outline"
+            placeholder="Car Events are logged here"
+            rows={10}
+            value={Car.events.join("\n")}
+            readonly={true}
+          ></IonTextarea>
         </IonCol>
       </IonRow>
     </IonGrid>

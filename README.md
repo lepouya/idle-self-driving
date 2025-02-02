@@ -26,7 +26,7 @@ Playing with this idea I have for a self-training driving system.
 - ~~Performance improvement~~
 - ~~Auto advancing and pausing~~
 - ~~Help message and guide~~
-- Show the state of the simulation below the canvas
+- ~~Show the state of the simulation below the canvas~~
 - Customization screen for sensors and network
 
 ## Bugs
