@@ -1,4 +1,4 @@
-import { Fragment, ReactNode } from "react";
+import { ComponentType, Fragment, ReactNode } from "react";
 import { Redirect, Route } from "react-router-dom";
 
 import {
@@ -9,14 +9,18 @@ import {
   IonPage,
   IonRouterOutlet,
   IonTabBar,
+  IonTabButton as IonTabButton_FIXME,
+  IonTabs as IonTabs_FIXME,
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
 import { IonReactHashRouter } from "@ionic/react-router";
 
-import { IonTabButton, IonTabs } from "../ionic-fixes";
 import genRegistry from "../utils/registry";
 import Icon from "./Icon";
+
+const IonTabs = IonTabs_FIXME as ComponentType<any>;
+const IonTabButton = IonTabButton_FIXME as ComponentType<any>;
 
 type TabProps = {
   path: string;

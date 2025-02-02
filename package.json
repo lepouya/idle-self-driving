@@ -1,6 +1,6 @@
 {
   "name": "idle-self-driving",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Unsupervised self-driving experiment",
   "author": "Pouya Larjani <pouya.larjani@gmail.com> (https://github.com/lepouya)",
   "license": "MIT",
@@ -23,12 +23,6 @@
     "update": "rm -rf node_modules && npm update"
   },
   "dependencies": {
-    "@capacitor/app": "latest",
-    "@capacitor/core": "latest",
-    "@capacitor/filesystem": "latest",
-    "@capacitor/keyboard": "latest",
-    "@capacitor/preferences": "latest",
-    "@capacitor/status-bar": "latest",
     "@ionic/react": "latest",
     "@ionic/react-router": "latest",
     "@ionic/storage": "latest",
@@ -39,7 +33,7 @@
     "react-router-dom": "latest"
   },
   "devDependencies": {
-    "@capacitor/cli": "latest",
+    "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/react-router": "latest",

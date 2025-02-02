@@ -6,7 +6,6 @@ import pkg from "./package.json";
 
 const externals: Record<string, RegExp> = {
   react: /react(?!.*css)/,
-  capacitor: /@capacitor/,
   ionic: /@ionic/,
   ionicons: /ionicons/,
 };
@@ -32,11 +31,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: function (id) {
-          if (!id.includes("node_modules")) {
-            return;
-          }
           for (let [name, regex] of Object.entries(externals)) {
-            if (regex.test(id)) {
+            if (id.includes("node_modules") && regex.test(id)) {
               return name;
             }
           }

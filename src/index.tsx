@@ -15,14 +15,15 @@ import "@ionic/react/css/palettes/dark.system.css";
 /* Theme variables */
 import "./theme.css";
 
-import { StrictMode } from "react";
+import { ComponentType, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { setupIonicReact } from "@ionic/react";
+import { IonApp as IonApp_FIXME, setupIonicReact } from "@ionic/react";
 
 import AppEvents from "./components/AppEvents";
 import TabApp from "./components/TabApp";
-import { IonApp } from "./ionic-fixes";
+
+const IonApp = IonApp_FIXME as ComponentType<any>;
 
 setupIonicReact();
 
