@@ -30,6 +30,7 @@ export default class Car {
   public odometer = 0;
   public laps = 0;
   private inCrossing = false;
+  private crossingDistance = 0;
   private totalTicks = 0;
   public startTime = 0;
   public endTime = 0;
@@ -184,6 +185,7 @@ export default class Car {
     this.odometer = 0;
     this.laps = 0;
     this.inCrossing = false;
+    this.crossingDistance = 0;
     this.startTime = 0;
     this.endTime = 0;
     this.collided = false;
@@ -212,6 +214,7 @@ export default class Car {
       this.startTime = this.endTime;
     }
     this.inCrossing = false;
+    this.crossingDistance = 0;
     this.collided = collided;
     this.fetchImageData();
 
@@ -504,8 +507,13 @@ export default class Car {
     }
 
     // Crossing the start/finish line
-    if (lapping && !this.inCrossing) {
+    if (
+      lapping &&
+      !this.inCrossing &&
+      (this.crossingDistance == 0 || this.odometer >= this.crossingDistance + 1)
+    ) {
       this.inCrossing = true;
+      this.crossingDistance = this.odometer;
 
       // Crossing in the wrong direction!
       if (crossAngle > Math.PI / 2) {
@@ -527,8 +535,13 @@ export default class Car {
         this.laps++;
         Car.log(this.name, "lap", this.laps, "score", ~~this.score.score);
       }
-    } else if (!lapping && this.inCrossing) {
+    } else if (
+      !lapping &&
+      this.inCrossing &&
+      this.odometer >= this.crossingDistance + 1
+    ) {
       this.inCrossing = false;
+      this.crossingDistance = this.odometer;
 
       // Turned around on the lap line and went the wrong way
       if (crossAngle > Math.PI / 2) {
@@ -567,28 +580,21 @@ export default class Car {
   /////////////
 
   static renderAll(context: CanvasRenderingContext2D) {
+    // Render cars in order of score from lowest. That way the best car appears on top
     const cars = Object.values(Car.registry.get()).sort(
       (a, b) => a.score.score - b.score.score,
     );
-
     cars.forEach((car, idx) => car.render(context, idx === cars.length - 1));
   }
 
   static tickAll(dt: number) {
-    Object.values(Car.registry.get()).forEach((car) => car.tick(dt));
+    const cars = Object.values(Car.registry.get());
+    cars.forEach((car) => car.tick(dt));
 
-    if (Settings.singleton.autoAdvance) {
-      const cars = Object.values(Car.registry.get());
+    if (Settings.singleton.autoAdvance && cars[0]?.track) {
       const resetAfter = Date.now() - 1000;
-      if (
-        cars.every(
-          (car) => car.collided && car.laps < 3 && car.endTime < resetAfter,
-        )
-      ) {
-        const track = cars[0]?.track;
-        if (track) {
-          Car.nextGeneration(track, false);
-        }
+      if (cars.every((car) => car.collided && car.endTime < resetAfter)) {
+        Car.nextGeneration(cars[0].track, true);
       }
     }
   }
