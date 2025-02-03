@@ -17,8 +17,9 @@
   "scripts": {
     "dev": "vite",
     "debug": "cross-env NODE_ENV=development tsc && vite build --mode development",
-    "release": "cross-env NODE_ENV=production tsc && vite optimize --mode production && vite build --mode production && vite build --mode production --emptyOutDir --outDir ../lepouya.github.io/idle-self-driving/",
+    "prod": "cross-env NODE_ENV=production tsc && vite optimize --mode production && vite build --mode production",
     "preview": "npm run debug && vite preview",
+    "release": "npm run prod && vite build --mode production --emptyOutDir --outDir ../lepouya.github.io/idle-self-driving/",
     "test": "vitest",
     "update": "rm -rf node_modules && npm update"
   },
